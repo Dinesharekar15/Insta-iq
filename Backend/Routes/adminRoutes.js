@@ -6,8 +6,10 @@ import {
   getAllUsers,
   getUserById,
   deleteUser,
+  
 } from '../controllers/adminController.js';
-import { createEvent, getAllEvents, getEventById, updateEvent, deleteEvent } from '../controllers/eventController.js';
+import {createBlog,updateBlog,deleteBlog} from '../controllers/blogController.js'
+import { createEvent, updateEvent, deleteEvent } from '../controllers/eventController.js';
 import { protect, authorizeRoles } from '../middelwares/auth.js';
 import { getCoursePurchasedByUsers } from '../controllers/adminController.js';
 import { uploadImage } from '../middelwares/uploadMiddleware.js'; // New: Import upload middleware
@@ -51,5 +53,15 @@ router.route('/events/:id')
  
   .put(uploadImage, updateEvent)    // Update an event with optional image upload
   .delete(deleteEvent);
+
+
+ // --- Blog Management Routes (Updated - No Image Upload) ---
+router.route('/blogs')
+  .post( createBlog); // Create a new blog (removed uploadImage)
+
+router.route('/blogs/:id')
+  .put( updateBlog)    // Update an existing blog (removed uploadImage)
+  .delete(deleteBlog); // Delete a blog
+
 
 export default router;
