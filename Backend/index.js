@@ -8,6 +8,7 @@ import courseRoutes from './Routes/courseRoutes.js';
 import contactRoutes from './Routes/contactRoutes.js';
 import adminRoutes from './Routes/adminRoutes.js'; // New: Import admin routes
 import eventRoutes from './Routes/eventRoutes.js'; // New: Import event routes
+import blogRoutes from './Routes/blogRoutes.js'; // New: Import blog routes
 
 // Load environment variables
 dotenv.config();
@@ -34,7 +35,7 @@ app.use('/api/courses', courseRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/events', eventRoutes); // New: Mount event routes
-
+app.use('/api/blogs', blogRoutes); // New: Mount blog routes
 // Error handling middleware (for asyncHandler errors)
 app.use((err, req, res, next) => {
   console.error(err.stack);
