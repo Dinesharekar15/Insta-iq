@@ -11,4 +11,4 @@ const router = express.Router();
 router.get('/', getAllBlogs); // Get all blog posts
 router.get('/:id', getBlogById); // Get a single blog post by ID
 
-export default router;
+export default router; 
