@@ -19,7 +19,11 @@ import "@fortawesome/fontawesome-free/css/all.min.css";
 const hasAdminAccess = () => {
   const userInfo = JSON.parse(localStorage.getItem("userInfo") || "{}");
   const userRole = userInfo.role;
-  return [ROLES.SUPER_ADMIN, ROLES.JUNIOR_ADMIN, ROLES.INSTRUCTOR].includes(userRole);
+  console.log('AdminPanel - Checking access for role:', userRole);
+  console.log('AdminPanel - Available roles:', [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.JUNIOR_ADMIN, ROLES.INSTRUCTOR]);
+  const hasAccess = [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.JUNIOR_ADMIN, ROLES.INSTRUCTOR].includes(userRole);
+  console.log('AdminPanel - Has access:', hasAccess);
+  return hasAccess;
 };
 
 const AdminPanel = () => {
@@ -29,8 +33,12 @@ const AdminPanel = () => {
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
 
   useEffect(() => {
+    console.log('AdminPanel - useEffect triggered');
     if (!hasAdminAccess()) {
+      console.log('AdminPanel - No admin access, redirecting to login');
       navigate("/login");
+    } else {
+      console.log('AdminPanel - Admin access confirmed');
     }
   }, [navigate]);
 

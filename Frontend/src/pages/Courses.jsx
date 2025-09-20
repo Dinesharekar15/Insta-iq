@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import axios from "axios"; // Import Axios
 import { useAdmin } from "../context/AdminContext";
 import { useAppContext } from "../context/AppContext";
+import { useAuth } from "../utils/auth";
 
 // Define your backend base URL from environment variables using import.meta.env
 const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000/api";
@@ -156,6 +157,8 @@ const categories = extractCategories(coursesData);
 const COURSES_PER_PAGE = 6;
 
 const Courses = () => {
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const { courses: adminCourses } = useAdmin();
   const { dispatch } = useAppContext();
   const [allFetchedCourses, setAllFetchedCourses] = useState([]); // Stores all courses from API
@@ -251,6 +254,19 @@ const Courses = () => {
   const handleCategoryClick = (cat) => {
     setSelectedCategory(cat);
     setPage(1); // Reset to first page on category change
+  };
+
+  // Handle course purchase with authentication check
+  const handleCoursePurchase = (courseId) => {
+    if (!isAuthenticated) {
+      // Show alert and redirect to login for unauthenticated users
+      alert('Please login to purchase this course');
+      navigate('/login');
+      return;
+    }
+    
+    // If authenticated, navigate to course details for purchase
+    navigate(`/course-details/${courseId}`);
   };
 
   return (
@@ -538,31 +554,43 @@ const Courses = () => {
                             padding: '0 24px 24px 24px', 
                             background: '#253248' 
                           }}>
-                            <Link to={`/course-details/${course._id}`} className="btn w-100" style={{ 
+                            <button onClick={() => handleCoursePurchase(course._id)} className="btn w-100" style={{ 
                               borderRadius: 12,
                               minHeight: 48,
                               fontWeight: 600,
                               border: 'none',
-                              background: '#4c1864',
+                              background: isAuthenticated ? '#4c1864' : '#666',
                               color: '#fff',
                               transition: 'all 0.3s ease',
-                              boxShadow: '0 4px 15px rgba(76, 24, 100, 0.3)',
+                              boxShadow: isAuthenticated ? '0 4px 15px rgba(76, 24, 100, 0.3)' : '0 4px 15px rgba(102, 102, 102, 0.3)',
                               display: 'inline-block',
                               textTransform: 'none',
-                              fontSize: '16px'
+                              fontSize: '16px',
+                              opacity: isAuthenticated ? 1 : 0.8,
+                              cursor: 'pointer'
                             }}
                             onMouseEnter={(e) => {
-                              e.target.style.backgroundColor = '#3f189a';
-                              e.target.style.transform = 'translateY(-2px)';
-                              e.target.style.boxShadow = '0 6px 20px rgba(76, 24, 100, 0.4)';
+                              if (isAuthenticated) {
+                                e.target.style.backgroundColor = '#3f189a';
+                                e.target.style.transform = 'translateY(-2px)';
+                                e.target.style.boxShadow = '0 6px 20px rgba(76, 24, 100, 0.4)';
+                              } else {
+                                e.target.style.backgroundColor = '#777';
+                                e.target.style.transform = 'translateY(-1px)';
+                              }
                             }}
                             onMouseLeave={(e) => {
-                              e.target.style.backgroundColor = '#4c1864';
-                              e.target.style.transform = 'translateY(0)';
-                              e.target.style.boxShadow = '0 4px 15px rgba(76, 24, 100, 0.3)';
+                              if (isAuthenticated) {
+                                e.target.style.backgroundColor = '#4c1864';
+                                e.target.style.transform = 'translateY(0)';
+                                e.target.style.boxShadow = '0 4px 15px rgba(76, 24, 100, 0.3)';
+                              } else {
+                                e.target.style.backgroundColor = '#666';
+                                e.target.style.transform = 'translateY(0)';
+                              }
                             }}>
-                              Buy Now
-                            </Link>
+                              {isAuthenticated ? 'Buy Now' : 'Login to Buy'}
+                            </button>
                           </div>
                         </div>
                       </div>

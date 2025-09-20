@@ -158,7 +158,11 @@ const Home = () => {
       }
     `;
     document.head.appendChild(style);
-    return () => document.head.removeChild(style);
+    return () => {
+      if (style.parentNode) {
+        style.parentNode.removeChild(style);
+      }
+    };
   }, []);
 
   // Initialize Owl Carousel for upcoming events and courses
@@ -166,8 +170,9 @@ const Home = () => {
     // Wait for DOM to be ready and jQuery to be available
     const initCarousels = () => {
       if (window.jQuery) {
-        // Initialize upcoming events carousel
-        if (window.jQuery('.upcoming-event-carousel').length > 0) {
+        try {
+          // Initialize upcoming events carousel
+          if (window.jQuery('.upcoming-event-carousel').length > 0 && !window.jQuery('.upcoming-event-carousel').hasClass('owl-loaded')) {
           window.jQuery('.upcoming-event-carousel').owlCarousel({
             center: true,
             autoplay: true,
@@ -271,6 +276,9 @@ const Home = () => {
             }
           });
         }
+        } catch (error) {
+          console.warn('Carousel initialization error:', error);
+        }
       }
     };
 
@@ -282,23 +290,27 @@ const Home = () => {
 
     return () => {
       clearTimeout(timer);
-      // Destroy carousels on unmount
+      // Destroy carousels on unmount with error handling
       if (window.jQuery) {
-        if (window.jQuery('.upcoming-event-carousel').length > 0) {
-          window.jQuery('.upcoming-event-carousel').trigger('destroy.owl.carousel');
-        }
-        if (window.jQuery('.courses-carousel').length > 0) {
-          window.jQuery('.courses-carousel').trigger('destroy.owl.carousel');
-        }
-        if (window.jQuery('.client-testimonial-carousel').length > 0) {
-          window.jQuery('.client-testimonial-carousel').trigger('destroy.owl.carousel');
-        }
-        if (window.jQuery('.student-testimonial-carousel').length > 0) {
-          window.jQuery('.student-testimonial-carousel').trigger('destroy.owl.carousel');
+        try {
+          if (window.jQuery('.upcoming-event-carousel').length > 0 && window.jQuery('.upcoming-event-carousel').hasClass('owl-loaded')) {
+            window.jQuery('.upcoming-event-carousel').trigger('destroy.owl.carousel');
+          }
+          if (window.jQuery('.courses-carousel').length > 0 && window.jQuery('.courses-carousel').hasClass('owl-loaded')) {
+            window.jQuery('.courses-carousel').trigger('destroy.owl.carousel');
+          }
+          if (window.jQuery('.client-testimonial-carousel').length > 0 && window.jQuery('.client-testimonial-carousel').hasClass('owl-loaded')) {
+            window.jQuery('.client-testimonial-carousel').trigger('destroy.owl.carousel');
+          }
+          if (window.jQuery('.student-testimonial-carousel').length > 0 && window.jQuery('.student-testimonial-carousel').hasClass('owl-loaded')) {
+            window.jQuery('.student-testimonial-carousel').trigger('destroy.owl.carousel');
+          }
+        } catch (error) {
+          console.warn('Carousel cleanup error:', error);
         }
       }
     };
-  }, [adminEvents, courses]); // Re-initialize when events or courses change
+  }, []); // Only initialize once on mount
 
   // Scroll to top function
   const scrollToTop = () => {
@@ -599,7 +611,7 @@ const Home = () => {
           <div className="row">
             <div className="upcoming-event-carousel owl-carousel owl-btn-center-lr owl-btn-1 col-12 p-lr0 m-b30">
               {(adminEvents && adminEvents.length > 0 ? adminEvents.filter(e => e.status === 'upcoming') : allEvents).map((event, idx) => (
-                <div className="item" key={idx}>
+                <div className="item" key={event._id || event.title + idx}>
                   <div className="event-bx" style={{ 
                     backgroundColor: '#253248', 
                     borderRadius: '16px',
@@ -823,7 +835,7 @@ const Home = () => {
                 <h3 className="text-white text-center" style={{ fontSize: '24px', fontWeight: '600', marginBottom: '30px' }}>Client Feedback</h3>
                 <div className="client-testimonial-carousel owl-carousel col-12 p-lr0">
                   {clientTestimonials.map((testimonial, idx) => (
-                    <div className="item" key={idx}>
+                    <div className="item" key={testimonial._id || testimonial.name + idx}>
                       <div className="testimonial-bx" style={{ 
                         backgroundColor: '#2a2a2a', 
                         borderRadius: '16px', 
@@ -874,7 +886,7 @@ const Home = () => {
                 <h3 className="text-white text-center" style={{ fontSize: '24px', fontWeight: '600', marginBottom: '30px' }}>Students Testimonials</h3>
                 <div className="student-testimonial-carousel owl-carousel col-12 p-lr0">
                   {studentTestimonials.map((testimonial, idx) => (
-                    <div className="item" key={idx}>
+                    <div className="item" key={testimonial._id || testimonial.name + idx}>
                       <div className="testimonial-bx" style={{ 
                         backgroundColor: '#2a2a2a', 
                         borderRadius: '16px', 

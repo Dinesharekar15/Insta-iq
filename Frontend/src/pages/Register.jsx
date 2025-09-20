@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react"; // Import useState and useEffect
+import React, { useState, useEffect, useRef } from "react"; // Import useState and useEffect
 import { Link, useNavigate } from "react-router-dom"; // Import useNavigate for redirection
 import axios from "axios"; // Import Axios
+import { useAuth } from "../utils/auth"; // Import auth utility
 
 // Define your backend base URL from environment variables using import.meta.env
 const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000/api";
@@ -8,6 +9,8 @@ console.log("Backend URL (Register Page):", import.meta.env.VITE_BACKEND_URL); /
 
 const Register = () => {
   const navigate = useNavigate(); // Hook for navigation
+  const { isAuthenticated, user, loading: authLoading } = useAuth(); // Check auth status
+  const redirectAttemptedRef = useRef(false);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -18,6 +21,37 @@ const Register = () => {
   const [loading, setLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState(null);
   const [errorMessage, setErrorMessage] = useState(null);
+
+  // Redirect authenticated users away from register page
+  useEffect(() => {
+    if (isAuthenticated && !authLoading && !redirectAttemptedRef.current) {
+      console.log('User already authenticated, redirecting...');
+      redirectAttemptedRef.current = true;
+      
+      const redirectPath = user?.role === 'admin' ? '/admin' : '/';
+      navigate(redirectPath, { replace: true });
+    }
+  }, [isAuthenticated, user, navigate, authLoading]);
+
+  // Early return if authenticated - don't render register form
+  if (isAuthenticated && !authLoading) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        backgroundColor: '#1e1e1e',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <div style={{ color: '#ffffff', textAlign: 'center' }}>
+          <div className="spinner-border" style={{ color: '#4c1864', marginBottom: '20px' }} role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+          <p>Redirecting...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Effect to clear success/error messages after a few seconds
   useEffect(() => {
@@ -52,7 +86,15 @@ const Register = () => {
 
     try {
       const response = await axios.post(`${API_BASE_URL}/auth/register`, formData);
+      
+      // Handle the new backend response format
       setSuccessMessage(response.data.message || "Registration successful! Redirecting to login...");
+      
+      // Optional: Store user info temporarily (but redirect to login for better UX)
+      if (response.data.user && response.data.token) {
+        console.log("Registration successful for user:", response.data.user.name);
+      }
+      
       setFormData({ // Clear form fields on success
         name: "",
         email: "",

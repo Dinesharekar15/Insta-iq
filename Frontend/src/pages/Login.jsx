@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react"; // Import useState and useEffect
-import { Link, useNavigate } from "react-router-dom"; // Import useNavigate for redirection
+import React, { useState, useEffect, useRef } from "react"; // Import useState and useEffect
+import { Link, useNavigate, useLocation } from "react-router-dom"; // Import useNavigate for redirection
 import axios from "axios"; // Import Axios
+import { useAuth } from "../utils/auth"; // Import auth utility
 
 // Define your backend base URL from environment variables using import.meta.env
 const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000/api";
@@ -8,6 +9,10 @@ console.log("Backend URL (Login Page):", import.meta.env.VITE_BACKEND_URL); // L
 
 const Login = () => {
   const navigate = useNavigate(); // Hook for navigation
+  const location = useLocation(); // Hook for current location
+  const { isAuthenticated, user, loading: authLoading, login } = useAuth(); // Check auth status
+  const redirectAttemptedRef = useRef(false);
+  const navigationInProgressRef = useRef(false);
 
   const [loginMethod, setLoginMethod] = useState('email'); // 'email' or 'mobile'
   const [formData, setFormData] = useState({
@@ -22,6 +27,55 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState(null); // For general success messages
   const [errorMessage, setErrorMessage] = useState(null); // For login errors
+
+  // Redirect authenticated users away from login page
+  useEffect(() => {
+    // Only redirect if we're actually on the login page
+    if (isAuthenticated && !authLoading && location.pathname === '/login' && !redirectAttemptedRef.current && !navigationInProgressRef.current) {
+      console.log('User already authenticated, redirecting from login page...');
+      redirectAttemptedRef.current = true;
+      navigationInProgressRef.current = true;
+      
+      // Check if user role requires admin panel access
+      const isAdminRole = user?.role && ['admin', 'super admin', 'junior admin', 'instructor'].includes(user.role);
+      const redirectPath = isAdminRole ? '/admin' : '/';
+      
+      console.log('Redirecting to:', redirectPath, 'for role:', user?.role);
+      
+      // Use setTimeout to break out of the render cycle
+      setTimeout(() => {
+        navigate(redirectPath, { replace: true });
+      }, 0);
+    }
+  }, [isAuthenticated, user?.role, authLoading, location.pathname]); // Added location.pathname to deps
+
+  // Reset navigation flags on unmount
+  useEffect(() => {
+    return () => {
+      redirectAttemptedRef.current = false;
+      navigationInProgressRef.current = false;
+    };
+  }, []);
+
+  // Early return if authenticated - don't render login form
+  if (isAuthenticated && !authLoading && redirectAttemptedRef.current) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        backgroundColor: '#1e1e1e',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <div style={{ color: '#ffffff', textAlign: 'center' }}>
+          <div className="spinner-border" style={{ color: '#4c1864', marginBottom: '20px' }} role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+          <p>Redirecting to {user?.role && ['admin', 'super admin', 'junior admin', 'instructor'].includes(user.role) ? 'Admin Panel' : 'Home'}...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Effect to clear success/error messages after a few seconds
   useEffect(() => {
@@ -60,17 +114,25 @@ const Login = () => {
     try {
       const response = await axios.post(`${API_BASE_URL}/auth/login`, formData);
 
-      // Store the JWT token in localStorage
+      // Store the JWT token and user info in localStorage
       localStorage.setItem('userInfo', JSON.stringify(response.data)); // Store full user info including token
 
-      setSuccessMessage("Login successful! Redirecting to home page...");
+      // Display backend success message
+      setSuccessMessage(response.data.message || "Login successful! Redirecting to home page...");
+      
       setFormData({ // Clear password field on success (keep email for convenience if desired)
         email: formData.email, // Keep email
         password: "", // Clear password
       });
 
-      // Redirect to the home page after successful login
-      navigate('/'); // Redirect to home page
+      // Redirect based on user role
+      setTimeout(() => {
+        if (['admin', 'super admin', 'junior admin', 'instructor'].includes(response.data.role)) {
+          navigate('/admin');
+        } else {
+          navigate('/');
+        }
+      }, 1500); // Small delay to show success message
 
     } catch (error) {
       console.error("Error during login:", error.response ? error.response.data : error.message);
@@ -85,95 +147,121 @@ const Login = () => {
   };
 
   // Handle OTP send
-  const handleSendOTP = async () => {
-    if (!mobileData.mobile || mobileData.mobile.length !== 10) {
-      setErrorMessage("Please enter a valid 10-digit mobile number");
-      return;
-    }
+  // const handleSendOTP = async () => {
+  //   if (!mobileData.mobile || mobileData.mobile.length !== 10) {
+  //     setErrorMessage("Please enter a valid 10-digit mobile number");
+  //     return;
+  //   }
 
-    setLoading(true);
-    setErrorMessage(null);
+  //   setLoading(true);
+  //   setErrorMessage(null);
 
-    try {
-      // Simulate OTP sending (replace with actual API call)
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setOtpSent(true);
-      setSuccessMessage("OTP sent to your mobile number!");
-    } catch (error) {
-      setErrorMessage("Failed to send OTP. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  //   try {
+  //     const response = await axios.post(`${API_BASE_URL}/auth/send-otp`, {
+  //       mobile: mobileData.mobile
+  //     });
+  //     setOtpSent(true);
+  //     setSuccessMessage(response.data.message || "OTP sent to your mobile number!");
+  //   } catch (error) {
+  //     console.error("Error sending OTP:", error.response ? error.response.data : error.message);
+  //     setErrorMessage(
+  //       error.response && error.response.data.message
+  //         ? error.response.data.message
+  //         : "Failed to send OTP. Please try again."
+  //     );
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
-  // Handle mobile OTP login
-  const handleMobileLogin = async (e) => {
-    e.preventDefault();
+  // // Handle mobile OTP login
+  // const handleMobileLogin = async (e) => {
+  //   e.preventDefault();
     
-    if (!mobileData.otp || mobileData.otp.length !== 6) {
-      setErrorMessage("Please enter a valid 6-digit OTP");
-      return;
-    }
+  //   if (!mobileData.otp || mobileData.otp.length !== 6) {
+  //     setErrorMessage("Please enter a valid 6-digit OTP");
+  //     return;
+  //   }
 
-    setLoading(true);
-    setErrorMessage(null);
+  //   setLoading(true);
+  //   setErrorMessage(null);
 
-    try {
-      // Simulate OTP verification (replace with actual API call)
-      await new Promise(resolve => setTimeout(resolve, 1000));
+  //   try {
+  //     const response = await axios.post(`${API_BASE_URL}/auth/verify-otp`, {
+  //       mobile: mobileData.mobile,
+  //       otp: mobileData.otp
+  //     });
+
+  //     // Store the JWT token and user info in localStorage
+  //     localStorage.setItem('userInfo', JSON.stringify(response.data));
+
+  //     setSuccessMessage(response.data.message || "Login successful! Redirecting to home page...");
       
-      // For demo purposes, simulate successful login
-      localStorage.setItem('userInfo', JSON.stringify({
-        name: 'Mobile User',
-        email: 'user@instaiq.com',
-        mobile: mobileData.mobile,
-        role: 'user'
-      }));
-
-      setSuccessMessage("Login successful! Redirecting to home page...");
-      navigate('/');
-    } catch (error) {
-      setErrorMessage("Invalid OTP. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  //     // Clear form data
+  //     setMobileData({
+  //       mobile: "",
+  //       otp: ""
+  //     });
+  //     setOtpSent(false);
+      
+  //     // Redirect to home page
+  //     navigate('/');
+  //   } catch (error) {
+  //     console.error("Error verifying OTP:", error.response ? error.response.data : error.message);
+  //     setErrorMessage(
+  //       error.response && error.response.data.message
+  //         ? error.response.data.message
+  //         : "Invalid OTP. Please try again."
+  //     );
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
   // Handle different role logins (for demo purposes)
   const handleRoleLogin = (role) => {
-    localStorage.setItem('isAdmin', 'true');
-    
     const roleConfigs = {
       'super admin': {
+        _id: 'demo-id-super-admin',
         name: 'Super Admin User',
         email: 'admin@instaiq.com',
-        role: 'super admin'
+        role: 'super admin',
+        token: 'demo-token-' + Date.now() // Add a demo token
       },
       'junior admin': {
+        _id: 'demo-id-junior-admin',
         name: 'Junior Admin User',
         email: 'junior.admin@instaiq.com',
-        role: 'junior admin'
+        role: 'junior admin',
+        token: 'demo-token-' + Date.now()
       },
       'instructor': {
+        _id: 'demo-id-instructor',
         name: 'Instructor User',
         email: 'instructor@instaiq.com',
-        role: 'instructor'
+        role: 'instructor',
+        token: 'demo-token-' + Date.now()
       },
       'student': {
+        _id: 'demo-id-student',
         name: 'Student User',
         email: 'student@instaiq.com',
-        role: 'student'
+        role: 'student',
+        token: 'demo-token-' + Date.now()
       }
     };
     
     const userInfo = roleConfigs[role];
-    localStorage.setItem('userInfo', JSON.stringify(userInfo));
     
-    if (role === 'student') {
-      navigate('/');
-    } else {
-      navigate('/admin');
+    // Set admin flag if needed
+    if (role !== 'student') {
+      localStorage.setItem('isAdmin', 'true');
     }
+    
+    // Use the auth login function to properly update state
+    login(userInfo);
+    
+    // The useEffect will handle the navigation automatically
   };
 
   return (
@@ -213,6 +301,7 @@ const Login = () => {
                     type="button"
                     className={`btn ${loginMethod === 'mobile' ? 'btn-primary' : 'btn-outline-primary'}`}
                     onClick={() => setLoginMethod('mobile')}
+                    disabled={true}
                   >
                     Mobile OTP Login
                   </button>
@@ -261,7 +350,7 @@ const Login = () => {
                     </div>
                   </div>
                 </div>
-                <div className="col-lg-12">
+                {/* <div className="col-lg-12">
                   <div className="form-group form-forget">
                     <div className="custom-control custom-checkbox">
                       <input
@@ -280,7 +369,7 @@ const Login = () => {
                       Forgot Password?
                     </a>
                   </div>
-                </div>
+                </div> */}
                 <div className="col-lg-12 m-b30">
                   <button
                     name="submit"

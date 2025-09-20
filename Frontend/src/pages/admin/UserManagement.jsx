@@ -1,106 +1,109 @@
 import React, { useState, useEffect } from "react";
 import { PermissionRender } from "../../components/PermissionGuard";
 import { PERMISSIONS } from "../../config/roles";
+import { userAPI, handleApiError } from "../../services/api";
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterRole, setFilterRole] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0
+  });
   const [formData, setFormData] = useState({
     name: "",
     email: "",
-    phone: "",
+    mobile: "",
     role: "student",
-    status: "active"
+    status: "active",
+    password: ""
   });
+  const [formErrors, setFormErrors] = useState({});
 
-  // Sample user data
-  const sampleUsers = [
-    {
-      id: 1,
-      name: "John Doe",
-      email: "john.doe@example.com",
-      phone: "+91 98765 43210",
-      role: "student",
-      status: "active",
-      joinDate: "2024-01-01",
-      lastLogin: "2024-01-15",
-      coursesEnrolled: 3,
-      avatar: "assets/images/profile/pic1.jpg"
-    },
-    {
-      id: 2,
-      name: "Jane Smith",
-      email: "jane.smith@example.com",
-      phone: "+91 98765 43211",
-      role: "instructor",
-      status: "active",
-      joinDate: "2024-01-05",
-      lastLogin: "2024-01-14",
-      coursesEnrolled: 0,
-      avatar: "assets/images/profile/pic2.jpg"
-    },
-    {
-      id: 3,
-      name: "Mike Johnson",
-      email: "mike.johnson@example.com",
-      phone: "+91 98765 43212",
-      role: "student",
-      status: "inactive",
-      joinDate: "2024-01-10",
-      lastLogin: "2024-01-08",
-      coursesEnrolled: 1,
-      avatar: "assets/images/profile/pic3.jpg"
-    },
-    {
-      id: 4,
-      name: "Sarah Wilson",
-      email: "sarah.wilson@example.com",
-      phone: "+91 98765 43213",
-      role: "super admin",
-      status: "active",
-      joinDate: "2024-01-15",
-      lastLogin: "2024-01-15",
-      coursesEnrolled: 0,
-      avatar: "assets/images/profile/pic1.jpg"
-    },
-    {
-      id: 5,
-      name: "Alex Johnson",
-      email: "alex.johnson@example.com",
-      phone: "+91 98765 43214",
-      role: "junior admin",
-      status: "active",
-      joinDate: "2024-01-20",
-      lastLogin: "2024-01-20",
-      coursesEnrolled: 0,
-      avatar: "assets/images/profile/pic2.jpg"
-    },
-    {
-      id: 6,
-      name: "Dr. Maria Garcia",
-      email: "maria.garcia@example.com",
-      phone: "+91 98765 43215",
-      role: "instructor",
-      status: "active",
-      joinDate: "2024-01-25",
-      lastLogin: "2024-01-25",
-      coursesEnrolled: 0,
-      avatar: "assets/images/profile/pic3.jpg"
+  // Load users from API
+  const fetchUsers = async (page = 1, search = "", role = "all", status = "all") => {
+    try {
+      setLoading(true);
+      setError("");
+      
+      const params = {
+        page,
+        limit: pagination.limit,
+        ...(search && { search }),
+        ...(role !== "all" && { role }),
+        ...(status !== "all" && { status })
+      };
+
+      const response = await userAPI.getUsers(params);
+      
+      if (response.success) {
+        setUsers(response.data.users || response.data || []);
+        setPagination(prev => ({
+          ...prev,
+          page: response.data.pagination?.page || page,
+          total: response.data.pagination?.total || response.data.length || 0,
+          totalPages: response.data.pagination?.totalPages || Math.ceil((response.data.length || 0) / prev.limit)
+        }));
+      } else {
+        setError(response.message || "Failed to fetch users");
+        setUsers([]);
+      }
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      setError(handleApiError(error));
+      setUsers([]);
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
 
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setUsers(sampleUsers);
-      setLoading(false);
-    }, 1000);
+    fetchUsers();
   }, []);
+
+  // Form validation
+  const validateForm = () => {
+    const errors = {};
+    
+    if (!formData.name.trim()) {
+      errors.name = "Name is required";
+    }
+    
+    if (!formData.email.trim()) {
+      errors.email = "Email is required";
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      errors.email = "Email is invalid";
+    }
+    
+    if (!formData.mobile.trim()) {
+      errors.mobile = "Mobile number is required";
+    } else if (!/^\d{10}$/.test(formData.mobile)) {
+      errors.mobile = "Mobile number must be 10 digits";
+    }
+    
+    if (!editingUser && !formData.password.trim()) {
+      errors.password = "Password is required";
+    } else if (!editingUser && formData.password.length < 6) {
+      errors.password = "Password must be at least 6 characters";
+    }
+    
+    if (!formData.role) {
+      errors.role = "Role is required";
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -108,195 +111,328 @@ const UserManagement = () => {
       ...prev,
       [name]: value
     }));
+    
+    // Clear field error when user starts typing
+    if (formErrors[name]) {
+      setFormErrors(prev => ({
+        ...prev,
+        [name]: ""
+      }));
+    }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (editingUser) {
-      // Update existing user
-      setUsers(prev => prev.map(user => 
-        user.id === editingUser.id ? { ...user, ...formData } : user
-      ));
-      setEditingUser(null);
-    } else {
-      // Add new user
-      const newUser = {
-        id: Date.now(),
-        ...formData,
-        joinDate: new Date().toISOString().split('T')[0],
-        lastLogin: new Date().toISOString().split('T')[0],
-        coursesEnrolled: 0,
-        avatar: "assets/images/profile/pic1.jpg"
-      };
-      setUsers(prev => [...prev, newUser]);
+    
+    if (!validateForm()) {
+      return;
     }
+
+    try {
+      setActionLoading(true);
+      setError("");
+      setSuccess("");
+
+      console.log("=== User Update Debug ===");
+      console.log("Backend URL:", import.meta.env.VITE_BACKEND_URL || "http://localhost:5000/api");
+      console.log("Editing user:", editingUser ? "Update" : "Create");
+      console.log("Form data:", formData);
+
+      let response;
+      if (editingUser) {
+        const updateData = { ...formData };
+        delete updateData.password; // Don't send password in update
+        console.log("Update data:", updateData);
+        console.log("User ID:", editingUser._id);
+        
+        response = await userAPI.updateUser(editingUser._id, updateData);
+      } else {
+        response = await userAPI.createUser(formData);
+      }
+
+      console.log("API Response:", response);
+
+      if (response.success) {
+        setSuccess(editingUser ? "User updated successfully!" : "User created successfully!");
+        handleCloseModal();
+        fetchUsers(pagination.page, searchTerm, filterRole, filterStatus);
+      } else {
+        setError(response.message || "Operation failed");
+      }
+    } catch (error) {
+      console.error("=== User Update Error Details ===");
+      console.error("Full error:", error);
+      console.error("Error message:", error.message);
+      console.error("Error code:", error.code);
+      console.error("Error response:", error.response);
+      console.error("Error request:", error.request);
+      
+      if (error.response) {
+        console.error("Response status:", error.response.status);
+        console.error("Response data:", error.response.data);
+        console.error("Response headers:", error.response.headers);
+      } else if (error.request) {
+        console.error("Network error - no response received");
+        console.error("Request details:", error.request);
+      }
+      
+      setError(handleApiError(error));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleCloseModal = () => {
     setShowAddModal(false);
+    setEditingUser(null);
     setFormData({
       name: "",
       email: "",
-      phone: "",
+      mobile: "",
       role: "student",
-      status: "active"
+      status: "active",
+      password: ""
     });
+    setFormErrors({});
   };
 
-  const handleEdit = (user) => {
+  const handleEditUser = (user) => {
     setEditingUser(user);
     setFormData({
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      role: user.role,
-      status: user.status
+      name: user.name || "",
+      email: user.email || "",
+      mobile: user.mobile || user.phone || "",
+      role: user.role || "student",
+      status: user.status || "active",
+      password: ""
     });
     setShowAddModal(true);
   };
 
-  const handleDelete = (userId) => {
-    if (window.confirm("Are you sure you want to delete this user?")) {
-      setUsers(prev => prev.filter(user => user.id !== userId));
+  const handleDeleteUser = async (userId) => {
+    if (!window.confirm("Are you sure you want to delete this user?")) {
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+      const response = await userAPI.deleteUser(userId);
+
+      if (response.success) {
+        setSuccess("User deleted successfully!");
+        fetchUsers(pagination.page, searchTerm, filterRole, filterStatus);
+      } else {
+        setError(response.message || "Failed to delete user");
+      }
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      setError(handleApiError(error));
+    } finally {
+      setActionLoading(false);
     }
   };
 
-  const handleStatusToggle = (userId) => {
-    setUsers(prev => prev.map(user => 
-      user.id === userId 
-        ? { ...user, status: user.status === 'active' ? 'inactive' : 'active' }
-        : user
-    ));
+  const handleSearch = (e) => {
+    e.preventDefault();
+    setPagination(prev => ({ ...prev, page: 1 }));
+    fetchUsers(1, searchTerm, filterRole, filterStatus);
   };
 
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.phone.includes(searchTerm);
-    const matchesRole = filterRole === "all" || user.role === filterRole;
-    const matchesStatus = filterStatus === "all" || user.status === filterStatus;
-    return matchesSearch && matchesRole && matchesStatus;
-  });
-
-  const getRoleColor = (role) => {
-    switch (role) {
-      case 'admin': return { background: '#dc3545', color: 'white' };
-      case 'instructor': return { background: '#007bff', color: 'white' };
-      case 'student': return { background: '#28a745', color: 'white' };
-      default: return { background: '#6c757d', color: 'white' };
+  const handleFilterChange = (type, value) => {
+    if (type === "role") {
+      setFilterRole(value);
+    } else if (type === "status") {
+      setFilterStatus(value);
     }
+    
+    setPagination(prev => ({ ...prev, page: 1 }));
+    fetchUsers(1, searchTerm, type === "role" ? value : filterRole, type === "status" ? value : filterStatus);
   };
 
-  const getStatusColor = (status) => {
-    return status === 'active' 
-      ? { background: '#d4edda', color: '#155724' }
-      : { background: '#f8d7da', color: '#721c24' };
+  const handlePageChange = (newPage) => {
+    setPagination(prev => ({ ...prev, page: newPage }));
+    fetchUsers(newPage, searchTerm, filterRole, filterStatus);
+  };
+
+  const getStatusBadge = (status) => {
+    const isActive = status === "active";
+    return (
+      <span style={{
+        padding: "4px 8px",
+        borderRadius: "12px",
+        fontSize: "12px",
+        fontWeight: "500",
+        color: isActive ? "#155724" : "#721c24",
+        backgroundColor: isActive ? "#d4edda" : "#f8d7da",
+        border: `1px solid ${isActive ? "#c3e6cb" : "#f5c6cb"}`
+      }}>
+        {status || "active"}
+      </span>
+    );
+  };
+
+  const getRoleBadge = (role) => {
+    const colors = {
+      "super admin": { bg: "#d4edda", color: "#155724", border: "#c3e6cb" },
+      "admin": { bg: "#d1ecf1", color: "#0c5460", border: "#bee5eb" },
+      "junior admin": { bg: "#fff3cd", color: "#856404", border: "#ffeaa7" },
+      "instructor": { bg: "#f8d7da", color: "#721c24", border: "#f5c6cb" },
+      "student": { bg: "#e2e3e5", color: "#383d41", border: "#d6d8db" }
+    };
+
+    const style = colors[role] || colors.student;
+
+    return (
+      <span style={{
+        padding: "4px 8px",
+        borderRadius: "12px",
+        fontSize: "12px",
+        fontWeight: "500",
+        color: style.color,
+        backgroundColor: style.bg,
+        border: `1px solid ${style.border}`,
+        textTransform: "capitalize"
+      }}>
+        {role || "student"}
+      </span>
+    );
   };
 
   if (loading) {
     return (
-      <div style={{ textAlign: 'center', padding: '50px' }}>
-        <i className="fa fa-spinner fa-spin" style={{ fontSize: '24px', color: '#007bff' }}></i>
-        <p>Loading users...</p>
+      <div style={{ 
+        display: "flex", 
+        justifyContent: "center", 
+        alignItems: "center", 
+        height: "400px",
+        fontSize: "18px"
+      }}>
+        <i className="fa fa-spinner fa-spin" style={{ marginRight: "10px" }}></i>
+        Loading users...
       </div>
     );
   }
 
   return (
-    <div>
-      {/* Page Header */}
-      <div style={{ marginBottom: '30px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <h2 style={{ margin: 0, color: '#333' }}>User Management</h2>
-            <p style={{ margin: '5px 0 0 0', color: '#666' }}>Manage all users on the platform</p>
-          </div>
-          <PermissionRender
-            userRole="super admin"
-            requiredPermissions={[PERMISSIONS.CREATE_USERS]}
-            fallback={null}
+    <div style={{ padding: "20px" }}>
+      <div style={{ 
+        display: "flex", 
+        justifyContent: "space-between", 
+        alignItems: "center", 
+        marginBottom: "30px" 
+      }}>
+        <h2 style={{ color: "#333", margin: 0 }}>User Management</h2>
+        
+        <PermissionRender permission={PERMISSIONS.MANAGE_USERS}>
+          <button
+            onClick={() => setShowAddModal(true)}
+            style={{
+              background: "#17a2b8",
+              color: "white",
+              border: "none",
+              padding: "12px 20px",
+              borderRadius: "5px",
+              cursor: "pointer",
+              fontSize: "14px",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px"
+            }}
           >
-            <button
-              onClick={() => setShowAddModal(true)}
-              style={{
-                background: '#17a2b8',
-                color: 'white',
-                border: 'none',
-                padding: '12px 24px',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                display: 'flex',
-                alignItems: 'center'
-              }}
-            >
-              <i className="fa fa-plus" style={{ marginRight: '8px' }}></i>
-              Add New User
-            </button>
-          </PermissionRender>
-        </div>
+            <i className="fa fa-plus"></i>
+            Add New User
+          </button>
+        </PermissionRender>
       </div>
 
-      {/* Filters and Search */}
-      <div style={{
-        background: '#fff',
-        borderRadius: '10px',
-        padding: '20px',
-        marginBottom: '20px',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-        border: '1px solid #eee'
+      {error && (
+        <div style={{
+          background: "#f8d7da",
+          color: "#721c24",
+          padding: "12px",
+          borderRadius: "5px",
+          marginBottom: "20px",
+          border: "1px solid #f5c6cb"
+        }}>
+          {error}
+        </div>
+      )}
+
+      {success && (
+        <div style={{
+          background: "#d4edda",
+          color: "#155724",
+          padding: "12px",
+          borderRadius: "5px",
+          marginBottom: "20px",
+          border: "1px solid #c3e6cb"
+        }}>
+          {success}
+        </div>
+      )}
+
+      {/* Search and Filters */}
+      <div style={{ 
+        background: "#f8f9fa", 
+        padding: "20px", 
+        borderRadius: "8px", 
+        marginBottom: "20px" 
       }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '20px', alignItems: 'end' }}>
-          <div>
-            <label style={{ display: 'block', marginBottom: '8px', color: '#666', fontSize: '14px' }}>
+        <form onSubmit={handleSearch} style={{ display: "flex", gap: "15px", alignItems: "end", flexWrap: "wrap" }}>
+          <div style={{ flex: 1, minWidth: "200px" }}>
+            <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "#555" }}>
               Search Users
             </label>
             <input
               type="text"
-              placeholder="Search by name, email, or phone..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search by name, email, or mobile..."
               style={{
-                width: '100%',
-                padding: '10px',
-                border: '1px solid #ddd',
-                borderRadius: '5px',
-                fontSize: '14px'
+                width: "100%",
+                padding: "10px",
+                border: "1px solid #ddd",
+                borderRadius: "5px",
+                fontSize: "14px"
               }}
             />
           </div>
+          
           <div>
-            <label style={{ display: 'block', marginBottom: '8px', color: '#666', fontSize: '14px' }}>
-              Filter by Role
+            <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "#555" }}>
+              Role
             </label>
             <select
               value={filterRole}
-              onChange={(e) => setFilterRole(e.target.value)}
+              onChange={(e) => handleFilterChange("role", e.target.value)}
               style={{
-                width: '100%',
-                padding: '10px',
-                border: '1px solid #ddd',
-                borderRadius: '5px',
-                fontSize: '14px'
+                padding: "10px",
+                border: "1px solid #ddd",
+                borderRadius: "5px",
+                fontSize: "14px"
               }}
             >
               <option value="all">All Roles</option>
-              <option value="super admin">Super Admin</option>
-              <option value="junior admin">Junior Admin</option>
-              <option value="instructor">Instructor</option>
               <option value="student">Student</option>
+              <option value="instructor">Instructor</option>
+              <option value="admin">Admin</option>
+              <option value="junior admin">Junior Admin</option>
+              <option value="super admin">Super Admin</option>
             </select>
           </div>
+          
           <div>
-            <label style={{ display: 'block', marginBottom: '8px', color: '#666', fontSize: '14px' }}>
-              Filter by Status
+            <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "#555" }}>
+              Status
             </label>
             <select
               value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
+              onChange={(e) => handleFilterChange("status", e.target.value)}
               style={{
-                width: '100%',
-                padding: '10px',
-                border: '1px solid #ddd',
-                borderRadius: '5px',
-                fontSize: '14px'
+                padding: "10px",
+                border: "1px solid #ddd",
+                borderRadius: "5px",
+                fontSize: "14px"
               }}
             >
               <option value="all">All Status</option>
@@ -304,169 +440,215 @@ const UserManagement = () => {
               <option value="inactive">Inactive</option>
             </select>
           </div>
-          <div>
-            <label style={{ display: 'block', marginBottom: '8px', color: '#666', fontSize: '14px' }}>
-              Total Users
-            </label>
-            <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#333' }}>
-              {filteredUsers.length}
-            </div>
-          </div>
-        </div>
+          
+          <button
+            type="submit"
+            style={{
+              background: "#17a2b8",
+              color: "white",
+              border: "none",
+              padding: "10px 20px",
+              borderRadius: "5px",
+              cursor: "pointer",
+              fontSize: "14px"
+            }}
+          >
+            <i className="fa fa-search"></i> Search
+          </button>
+        </form>
       </div>
 
       {/* Users Table */}
-      <div style={{
-        background: '#fff',
-        borderRadius: '10px',
-        padding: '25px',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-        border: '1px solid #eee'
+      <div style={{ 
+        background: "white", 
+        borderRadius: "8px", 
+        overflow: "hidden",
+        border: "1px solid #ddd"
       }}>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid #eee' }}>
-                <th style={{ textAlign: 'left', padding: '15px 0', color: '#333', fontWeight: 'bold' }}>User</th>
-                <th style={{ textAlign: 'left', padding: '15px 0', color: '#333', fontWeight: 'bold' }}>Contact</th>
-                <th style={{ textAlign: 'left', padding: '15px 0', color: '#333', fontWeight: 'bold' }}>Role</th>
-                <th style={{ textAlign: 'left', padding: '15px 0', color: '#333', fontWeight: 'bold' }}>Status</th>
-                <th style={{ textAlign: 'left', padding: '15px 0', color: '#333', fontWeight: 'bold' }}>Courses</th>
-                <th style={{ textAlign: 'left', padding: '15px 0', color: '#333', fontWeight: 'bold' }}>Last Login</th>
-                <th style={{ textAlign: 'left', padding: '15px 0', color: '#333', fontWeight: 'bold' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredUsers.map((user) => (
-                <tr key={user.id} style={{ borderBottom: '1px solid #f8f9fa' }}>
-                  <td style={{ padding: '15px 0' }}>
-                    <div style={{ display: 'flex', alignItems: 'center' }}>
+        {users.length === 0 ? (
+          <div style={{ 
+            padding: "40px", 
+            textAlign: "center", 
+            color: "#666",
+            fontSize: "16px"
+          }}>
+            <i className="fa fa-users" style={{ fontSize: "48px", marginBottom: "15px", display: "block" }}></i>
+            {searchTerm || filterRole !== "all" || filterStatus !== "all" 
+              ? "No users found matching your criteria." 
+              : "No users found. Add your first user to get started."
+            }
+          </div>
+        ) : (
+          <>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead style={{ background: "#f8f9fa" }}>
+                <tr>
+                  <th style={{ padding: "15px", textAlign: "left", borderBottom: "1px solid #ddd" }}>Avatar</th>
+                  <th style={{ padding: "15px", textAlign: "left", borderBottom: "1px solid #ddd" }}>User Details</th>
+                  <th style={{ padding: "15px", textAlign: "left", borderBottom: "1px solid #ddd" }}>Contact</th>
+                  <th style={{ padding: "15px", textAlign: "left", borderBottom: "1px solid #ddd" }}>Role</th>
+                  <th style={{ padding: "15px", textAlign: "left", borderBottom: "1px solid #ddd" }}>Status</th>
+                  <th style={{ padding: "15px", textAlign: "left", borderBottom: "1px solid #ddd" }}>Joined</th>
+                  <th style={{ padding: "15px", textAlign: "center", borderBottom: "1px solid #ddd" }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((user, index) => (
+                  <tr key={user._id || index} style={{ borderBottom: "1px solid #f1f1f1" }}>
+                    <td style={{ padding: "15px" }}>
                       <img
-                        src={user.avatar}
-                        alt={user.name}
+                        src={user.profileImage || user.avatar || "https://via.placeholder.com/40x40/17a2b8/ffffff?text=U"}
+                        alt="Avatar"
                         style={{
-                          width: '50px',
-                          height: '50px',
-                          borderRadius: '50%',
-                          marginRight: '15px',
-                          objectFit: 'cover'
+                          width: "40px",
+                          height: "40px",
+                          borderRadius: "50%",
+                          objectFit: "cover"
                         }}
                       />
+                    </td>
+                    <td style={{ padding: "15px" }}>
                       <div>
-                        <div style={{ fontWeight: 'bold', color: '#333', marginBottom: '5px' }}>
-                          {user.name}
+                        <div style={{ fontWeight: "500", color: "#333", marginBottom: "2px" }}>
+                          {user.name || "N/A"}
                         </div>
-                        <div style={{ fontSize: '12px', color: '#666' }}>
-                          Joined: {new Date(user.joinDate).toLocaleDateString()}
+                        <div style={{ fontSize: "13px", color: "#666" }}>
+                          {user.email || "N/A"}
                         </div>
                       </div>
-                    </div>
-                  </td>
-                  <td style={{ padding: '15px 0' }}>
-                    <div style={{ marginBottom: '5px' }}>
-                      <div style={{ fontSize: '14px', color: '#333' }}>{user.email}</div>
-                      <div style={{ fontSize: '12px', color: '#666' }}>{user.phone}</div>
-                    </div>
-                  </td>
-                  <td style={{ padding: '15px 0' }}>
-                    <span style={{
-                      padding: '4px 12px',
-                      borderRadius: '20px',
-                      fontSize: '12px',
-                      fontWeight: 'bold',
-                      textTransform: 'capitalize',
-                      ...getRoleColor(user.role)
-                    }}>
-                      {user.role}
-                    </span>
-                  </td>
-                  <td style={{ padding: '15px 0' }}>
-                    <span style={{
-                      padding: '4px 12px',
-                      borderRadius: '20px',
-                      fontSize: '12px',
-                      fontWeight: 'bold',
-                      textTransform: 'capitalize',
-                      ...getStatusColor(user.status)
-                    }}>
-                      {user.status}
-                    </span>
-                  </td>
-                  <td style={{ padding: '15px 0', color: '#333' }}>
-                    {user.coursesEnrolled} courses
-                  </td>
-                  <td style={{ padding: '15px 0', color: '#666', fontSize: '14px' }}>
-                    {new Date(user.lastLogin).toLocaleDateString()}
-                  </td>
-                  <td style={{ padding: '15px 0' }}>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <PermissionRender
-                        userRole="super admin"
-                        requiredPermissions={[PERMISSIONS.EDIT_USERS]}
-                        fallback={null}
-                      >
-                        <button
-                          onClick={() => handleEdit(user)}
-                          style={{
-                            background: '#007bff',
-                            color: 'white',
-                            border: 'none',
-                            padding: '6px 12px',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            fontSize: '12px'
-                          }}
-                        >
-                          <i className="fa fa-edit"></i>
-                        </button>
+                    </td>
+                    <td style={{ padding: "15px", fontSize: "14px", color: "#666" }}>
+                      {user.mobile || user.phone || "N/A"}
+                    </td>
+                    <td style={{ padding: "15px" }}>
+                      {getRoleBadge(user.role)}
+                    </td>
+                    <td style={{ padding: "15px" }}>
+                      {getStatusBadge(user.status)}
+                    </td>
+                    <td style={{ padding: "15px", fontSize: "14px", color: "#666" }}>
+                      {user.createdAt 
+                        ? new Date(user.createdAt).toLocaleDateString() 
+                        : "N/A"
+                      }
+                    </td>
+                    <td style={{ padding: "15px", textAlign: "center" }}>
+                      <PermissionRender permission={PERMISSIONS.MANAGE_USERS}>
+                        <div style={{ display: "flex", gap: "8px", justifyContent: "center" }}>
+                          <button
+                            onClick={() => handleEditUser(user)}
+                            disabled={actionLoading}
+                            style={{
+                              background: "#17a2b8",
+                              color: "white",
+                              border: "none",
+                              padding: "6px 12px",
+                              borderRadius: "4px",
+                              cursor: actionLoading ? "not-allowed" : "pointer",
+                              fontSize: "12px"
+                            }}
+                            title="Edit User"
+                          >
+                            <i className="fa fa-edit"></i>
+                          </button>
+                          <button
+                            onClick={() => handleDeleteUser(user._id)}
+                            disabled={actionLoading}
+                            style={{
+                              background: "#dc3545",
+                              color: "white",
+                              border: "none",
+                              padding: "6px 12px",
+                              borderRadius: "4px",
+                              cursor: actionLoading ? "not-allowed" : "pointer",
+                              fontSize: "12px"
+                            }}
+                            title="Delete User"
+                          >
+                            <i className="fa fa-trash"></i>
+                          </button>
+                        </div>
                       </PermissionRender>
-                      <PermissionRender
-                        userRole="super admin"
-                        requiredPermissions={[PERMISSIONS.EDIT_USERS]}
-                        fallback={null}
-                      >
-                        <button
-                          onClick={() => handleStatusToggle(user.id)}
-                          style={{
-                            background: user.status === 'active' ? '#ffc107' : '#28a745',
-                            color: 'white',
-                            border: 'none',
-                            padding: '6px 12px',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            fontSize: '12px'
-                          }}
-                        >
-                          <i className={`fa fa-${user.status === 'active' ? 'pause' : 'play'}`}></i>
-                        </button>
-                      </PermissionRender>
-                      <PermissionRender
-                        userRole="super admin"
-                        requiredPermissions={[PERMISSIONS.DELETE_USERS]}
-                        fallback={null}
-                      >
-                        <button
-                          onClick={() => handleDelete(user.id)}
-                          style={{
-                            background: '#dc3545',
-                            color: 'white',
-                            border: 'none',
-                            padding: '6px 12px',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            fontSize: '12px'
-                          }}
-                        >
-                          <i className="fa fa-trash"></i>
-                        </button>
-                      </PermissionRender>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {/* Pagination */}
+            <div style={{ 
+              padding: "20px", 
+              borderTop: "1px solid #f1f1f1",
+              display: "flex", 
+              justifyContent: "space-between",
+              alignItems: "center",
+              background: "#f8f9fa"
+            }}>
+              <div style={{ fontSize: "14px", color: "#666" }}>
+                Showing {((pagination.page - 1) * pagination.limit) + 1} to{" "}
+                {Math.min(pagination.page * pagination.limit, pagination.total)} of{" "}
+                {pagination.total} users
+              </div>
+              
+              <div style={{ display: "flex", gap: "5px" }}>
+                <button
+                  onClick={() => handlePageChange(pagination.page - 1)}
+                  disabled={pagination.page === 1}
+                  style={{
+                    padding: "8px 12px",
+                    border: "1px solid #ddd",
+                    background: pagination.page === 1 ? "#f8f9fa" : "white",
+                    color: pagination.page === 1 ? "#6c757d" : "#17a2b8",
+                    borderRadius: "4px",
+                    cursor: pagination.page === 1 ? "not-allowed" : "pointer",
+                    fontSize: "14px"
+                  }}
+                >
+                  Previous
+                </button>
+                
+                {[...Array(pagination.totalPages)].map((_, index) => {
+                  const pageNum = index + 1;
+                  const isCurrentPage = pageNum === pagination.page;
+                  
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => handlePageChange(pageNum)}
+                      style={{
+                        padding: "8px 12px",
+                        border: "1px solid #ddd",
+                        background: isCurrentPage ? "#17a2b8" : "white",
+                        color: isCurrentPage ? "white" : "#17a2b8",
+                        borderRadius: "4px",
+                        cursor: "pointer",
+                        fontSize: "14px"
+                      }}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+                
+                <button
+                  onClick={() => handlePageChange(pagination.page + 1)}
+                  disabled={pagination.page === pagination.totalPages}
+                  style={{
+                    padding: "8px 12px",
+                    border: "1px solid #ddd",
+                    background: pagination.page === pagination.totalPages ? "#f8f9fa" : "white",
+                    color: pagination.page === pagination.totalPages ? "#6c757d" : "#17a2b8",
+                    borderRadius: "4px",
+                    cursor: pagination.page === pagination.totalPages ? "not-allowed" : "pointer",
+                    fontSize: "14px"
+                  }}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Add/Edit User Modal */}
@@ -497,17 +679,7 @@ const UserManagement = () => {
                 {editingUser ? 'Edit User' : 'Add New User'}
               </h3>
               <button
-                onClick={() => {
-                  setShowAddModal(false);
-                  setEditingUser(null);
-                  setFormData({
-                    name: "",
-                    email: "",
-                    phone: "",
-                    role: "student",
-                    status: "active"
-                  });
-                }}
+                onClick={handleCloseModal}
                 style={{
                   background: 'none',
                   border: 'none',
@@ -535,11 +707,16 @@ const UserManagement = () => {
                     style={{
                       width: '100%',
                       padding: '10px',
-                      border: '1px solid #ddd',
+                      border: formErrors.name ? '1px solid #dc3545' : '1px solid #ddd',
                       borderRadius: '5px',
                       fontSize: '14px'
                     }}
                   />
+                  {formErrors.name && (
+                    <div style={{ color: '#dc3545', fontSize: '12px', marginTop: '5px' }}>
+                      {formErrors.name}
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -555,32 +732,71 @@ const UserManagement = () => {
                     style={{
                       width: '100%',
                       padding: '10px',
-                      border: '1px solid #ddd',
+                      border: formErrors.email ? '1px solid #dc3545' : '1px solid #ddd',
                       borderRadius: '5px',
                       fontSize: '14px'
                     }}
                   />
+                  {formErrors.email && (
+                    <div style={{ color: '#dc3545', fontSize: '12px', marginTop: '5px' }}>
+                      {formErrors.email}
+                    </div>
+                  )}
                 </div>
 
                 <div>
                   <label style={{ display: 'block', marginBottom: '8px', color: '#666', fontSize: '14px' }}>
-                    Phone Number *
+                    Mobile Number *
                   </label>
                   <input
                     type="tel"
-                    name="phone"
-                    value={formData.phone}
+                    name="mobile"
+                    value={formData.mobile}
                     onChange={handleInputChange}
+                    placeholder="10-digit mobile number"
                     required
                     style={{
                       width: '100%',
                       padding: '10px',
-                      border: '1px solid #ddd',
+                      border: formErrors.mobile ? '1px solid #dc3545' : '1px solid #ddd',
                       borderRadius: '5px',
                       fontSize: '14px'
                     }}
                   />
+                  {formErrors.mobile && (
+                    <div style={{ color: '#dc3545', fontSize: '12px', marginTop: '5px' }}>
+                      {formErrors.mobile}
+                    </div>
+                  )}
                 </div>
+
+                {!editingUser && (
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', color: '#666', fontSize: '14px' }}>
+                      Password *
+                    </label>
+                    <input
+                      type="password"
+                      name="password"
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      placeholder="Minimum 6 characters"
+                      required
+                      style={{
+                        width: '100%',
+                        padding: '10px',
+                        border: formErrors.password ? '1px solid #dc3545' : '1px solid #ddd',
+                        borderRadius: '5px',
+                        fontSize: '14px'
+                      }}
+                    />
+                    {formErrors.password && (
+                      <div style={{ color: '#dc3545', fontSize: '12px', marginTop: '5px' }}>
+                        {formErrors.password}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div>
                   <label style={{ display: 'block', marginBottom: '8px', color: '#666', fontSize: '14px' }}>
@@ -601,9 +817,15 @@ const UserManagement = () => {
                   >
                     <option value="student">Student</option>
                     <option value="instructor">Instructor</option>
+                    <option value="admin">Admin</option>
                     <option value="junior admin">Junior Admin</option>
                     <option value="super admin">Super Admin</option>
                   </select>
+                  {formErrors.role && (
+                    <div style={{ color: '#dc3545', fontSize: '12px', marginTop: '5px' }}>
+                      {formErrors.role}
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -631,38 +853,34 @@ const UserManagement = () => {
               <div style={{ display: 'flex', gap: '15px', marginTop: '30px' }}>
                 <button
                   type="submit"
+                  disabled={actionLoading}
                   style={{
-                    background: '#17a2b8',
+                    background: actionLoading ? '#6c757d' : '#17a2b8',
                     color: 'white',
                     border: 'none',
                     padding: '12px 24px',
                     borderRadius: '5px',
-                    cursor: 'pointer',
-                    fontSize: '14px'
+                    cursor: actionLoading ? 'not-allowed' : 'pointer',
+                    fontSize: '14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
                   }}
                 >
-                  {editingUser ? 'Update User' : 'Add User'}
+                  {actionLoading && <i className="fa fa-spinner fa-spin"></i>}
+                  {actionLoading ? 'Processing...' : (editingUser ? 'Update User' : 'Add User')}
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowAddModal(false);
-                    setEditingUser(null);
-                    setFormData({
-                      name: "",
-                      email: "",
-                      phone: "",
-                      role: "student",
-                      status: "active"
-                    });
-                  }}
+                  onClick={handleCloseModal}
+                  disabled={actionLoading}
                   style={{
                     background: '#6c757d',
                     color: 'white',
                     border: 'none',
                     padding: '12px 24px',
                     borderRadius: '5px',
-                    cursor: 'pointer',
+                    cursor: actionLoading ? 'not-allowed' : 'pointer',
                     fontSize: '14px'
                   }}
                 >
@@ -677,4 +895,4 @@ const UserManagement = () => {
   );
 };
 
-export default UserManagement; 
+export default UserManagement;

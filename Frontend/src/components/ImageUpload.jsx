@@ -31,20 +31,8 @@ const ImageUpload = ({ onImageSelect, currentImage = "", placeholder = "Upload i
       };
       reader.readAsDataURL(file);
 
-      // For demo purposes, we'll use the preview as the image URL
-      // In a real app, you would upload to a server and get back a URL
-      const mockUpload = () => {
-        return new Promise((resolve) => {
-          setTimeout(() => {
-            // Generate a fake URL or use the preview
-            const fakeUrl = `assets/images/uploads/${file.name}`;
-            resolve(fakeUrl);
-          }, 1000);
-        });
-      };
-
-      const imageUrl = await mockUpload();
-      onImageSelect(imageUrl);
+      // Pass the actual file object to the parent component
+      onImageSelect(file);
       
     } catch (error) {
       console.error('Error uploading image:', error);
@@ -86,7 +74,7 @@ const ImageUpload = ({ onImageSelect, currentImage = "", placeholder = "Upload i
 
   const removeImage = () => {
     setPreview('');
-    onImageSelect('');
+    onImageSelect(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }

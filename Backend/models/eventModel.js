@@ -37,6 +37,26 @@ const eventSchema = mongoose.Schema(
       type: String,
       required: true,
     },
+    capacity: {
+      type: Number,
+      default: 100
+    },
+    registeredCount: {
+      type: Number,
+      default: 0
+    },
+    isActive: {
+      type: Boolean,
+      default: true
+    },
+    eventUrl: { // For online events
+      type: String,
+      default: ''
+    },
+    price: {
+      type: Number,
+      default: 0 // 0 for free events
+    },
   },
   {
     timestamps: true, // Adds createdAt and updatedAt fields automatically

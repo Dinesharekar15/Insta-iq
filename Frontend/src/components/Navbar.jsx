@@ -1,52 +1,25 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAppContext } from "../context/AppContext";
+import { useAuth } from "../utils/auth";
 
 // Navbar component with proper styling
 const Navbar = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userName, setUserName] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const navigate = useNavigate();
   const { state } = useAppContext();
+  const { isAuthenticated, user, logout } = useAuth();
   
   // Get cart item count
   const cartItemCount = state.cart ? state.cart.length : 0;
-
-  // Effect to check login status from localStorage
-  useEffect(() => {
-    const checkLoginStatus = () => {
-      const userInfo = localStorage.getItem('userInfo');
-      if (userInfo) {
-        try {
-          const parsedUserInfo = JSON.parse(userInfo);
-          setIsLoggedIn(true);
-          setUserName(parsedUserInfo.name || parsedUserInfo.email);
-        } catch (e) {
-          console.error("Failed to parse userInfo from localStorage", e);
-          setIsLoggedIn(false);
-          setUserName("");
-          localStorage.removeItem('userInfo');
-        }
-      } else {
-        setIsLoggedIn(false);
-        setUserName("");
-      }
-    };
-
-    checkLoginStatus();
-    window.addEventListener('storage', checkLoginStatus);
-    return () => {
-      window.removeEventListener('storage', checkLoginStatus);
-    };
-  }, []);
+  
+  // Get user name for display
+  const userName = user?.name || user?.email || "User";
 
   // Handle user logout
   const handleLogout = () => {
-    localStorage.removeItem('userInfo');
-    setIsLoggedIn(false);
-    setUserName("");
+    logout();
     navigate('/');
   };
 
@@ -195,40 +168,42 @@ const Navbar = () => {
 
               {/* Login/Register Links - Right Side */}
               <div className="auth-links" style={{ display: 'flex', alignItems: 'center' }}>
-                {isLoggedIn ? (
+                {isAuthenticated ? (
                   <>
-                                    <button onClick={() => handleNavigation('/profile')} style={{ color: '#fff', textDecoration: 'none', fontWeight: '500', fontSize: '14px', margin: '0 8px', background: 'none', border: 'none', cursor: 'pointer' }}>Hi, {userName}</button>
-                <button onClick={() => { handleLogout(); handleNavigation('/'); }} style={{ color: '#fff', textDecoration: 'none', fontWeight: '500', fontSize: '14px', margin: '0 8px', background: 'none', border: 'none', cursor: 'pointer' }}>Logout</button>
+                    <button onClick={() => handleNavigation('/profile')} style={{ color: '#fff', textDecoration: 'none', fontWeight: '500', fontSize: '14px', margin: '0 8px', background: 'none', border: 'none', cursor: 'pointer' }}>Hi, {userName}</button>
+                    <button onClick={() => { handleLogout(); handleNavigation('/'); }} style={{ color: '#fff', textDecoration: 'none', fontWeight: '500', fontSize: '14px', margin: '0 8px', background: 'none', border: 'none', cursor: 'pointer' }}>Logout</button>
                   </>
                 ) : (
                   <>
-                                      <button onClick={() => handleNavigation('/login')} style={{ color: '#fff', textDecoration: 'none', fontWeight: '500', fontSize: '14px', margin: '0 8px', background: 'none', border: 'none', cursor: 'pointer' }}>LOGIN</button>
-                  <button onClick={() => handleNavigation('/register')} style={{ color: '#fff', textDecoration: 'none', fontWeight: '500', fontSize: '14px', margin: '0 8px', background: 'none', border: 'none', cursor: 'pointer' }}>REGISTER</button>
+                    <button onClick={() => handleNavigation('/login')} style={{ color: '#fff', textDecoration: 'none', fontWeight: '500', fontSize: '14px', margin: '0 8px', background: 'none', border: 'none', cursor: 'pointer' }}>LOGIN</button>
+                    <button onClick={() => handleNavigation('/register')} style={{ color: '#fff', textDecoration: 'none', fontWeight: '500', fontSize: '14px', margin: '0 8px', background: 'none', border: 'none', cursor: 'pointer' }}>REGISTER</button>
                   </>
                 )}
-                {/* Cart Icon with Badge */}
-                <button onClick={() => handleNavigation('/checkout')} style={{ color: '#fff', marginLeft: '15px', position: 'relative', textDecoration: 'none', background: 'none', border: 'none', cursor: 'pointer' }}>
-                  <i className="fa fa-shopping-cart" style={{ fontSize: '18px' }}></i>
-                  {cartItemCount > 0 && (
-                    <span style={{
-                      position: 'absolute',
-                      top: '-8px',
-                      right: '-8px',
-                      background: '#e74c3c',
-                      color: '#fff',
-                      borderRadius: '50%',
-                      width: '18px',
-                      height: '18px',
-                      fontSize: '10px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontWeight: 'bold'
-                    }}>
-                      {cartItemCount}
-                    </span>
-                  )}
-                </button>
+                {/* Cart Icon with Badge - Only show for authenticated users */}
+                {isAuthenticated && (
+                  <button onClick={() => handleNavigation('/checkout')} style={{ color: '#fff', marginLeft: '15px', position: 'relative', textDecoration: 'none', background: 'none', border: 'none', cursor: 'pointer' }}>
+                    <i className="fa fa-shopping-cart" style={{ fontSize: '18px' }}></i>
+                    {cartItemCount > 0 && (
+                      <span style={{
+                        position: 'absolute',
+                        top: '-8px',
+                        right: '-8px',
+                        background: '#e74c3c',
+                        color: '#fff',
+                        borderRadius: '50%',
+                        width: '18px',
+                        height: '18px',
+                        fontSize: '10px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: 'bold'
+                      }}>
+                        {cartItemCount}
+                      </span>
+                    )}
+                  </button>
+                )}
               </div>
           </div>
         </div>

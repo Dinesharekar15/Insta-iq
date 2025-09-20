@@ -205,19 +205,27 @@ const CourseDetails = () => {
   console.log("CourseDetails - Admin courses:", adminCourses);
   
   // First, try to find course from fallback data (this ensures we always have a course)
-  course = fallbackCourses.find(c => c._id === id) || fallbackCourses[parseInt(id, 10)];
+  course = fallbackCourses.find(c => c._id === id) || fallbackCourses[parseInt(id, 10)] || null;
   
   // If admin courses are available, try to enhance with admin data
   if (adminCourses && adminCourses.length > 0) {
     const adminCourse = adminCourses.find(c => c._id === id);
-    if (adminCourse) {
+    if (adminCourse && course) {
       // Merge admin data with fallback data
       course = {
         ...course, // Fallback data as base
         ...adminCourse, // Admin data takes precedence
-        imageUrl: adminCourse.imageUrl || course.img, // Use admin image if available
-        description: adminCourse.description || course.description,
-        details: adminCourse.details || course.details
+        imageUrl: adminCourse.imageUrl || (course && course.img), // Use admin image if available
+        description: adminCourse.description || (course && course.description),
+        details: adminCourse.details || (course && course.details) || ''
+      };
+    } else if (adminCourse && !course) {
+      // If we found admin course but no fallback course, use admin course directly
+      course = {
+        ...adminCourse,
+        imageUrl: adminCourse.imageUrl,
+        description: adminCourse.description || '',
+        details: adminCourse.details || ''
       };
     }
   }

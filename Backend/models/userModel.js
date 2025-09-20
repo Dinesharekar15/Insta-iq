@@ -12,6 +12,13 @@ const userSchema = mongoose.Schema(
       unique: true,
       match: [/\S+@\S+\.\S+/, 'Please enter a valid email'], // Email format validation
     },
+    mobile: {
+      type: String,
+      required: false,
+      unique: true,
+      sparse: true, // Allows multiple null values but unique non-null values
+      match: [/^\d{10}$/, 'Mobile number must be 10 digits'], // Mobile format validation
+    },
     password: {
       type: String,
       required: true,
@@ -19,8 +26,13 @@ const userSchema = mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['user', 'admin'],
-      default: 'user',
+      enum: ['student', 'instructor', 'admin', 'junior admin', 'super admin'],
+      default: 'student',
+    },
+    status: {
+      type: String,
+      enum: ['active', 'inactive'],
+      default: 'active',
     },
     purchasedCourses: [
       {

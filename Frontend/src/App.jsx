@@ -43,6 +43,10 @@ function App() {
         {/* Admin Panel route without Layout wrapper */}
         <Route path="/admin/*" element={<AdminPanel />} />
         
+        {/* Auth routes without Layout wrapper */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        
         {/* All other routes wrapped with Layout */}
         <Route path="/" element={<Layout><Outlet /></Layout>}>
           <Route index element={<Home />} />
@@ -51,9 +55,7 @@ function App() {
           <Route path="about" element={<About />} />
           <Route path="digital-products" element={<DigitalProducts />} />
           <Route path="membership" element={<Membership />} />
-          <Route path="login" element={<Login />} />
           <Route path="cart" element={<Cart />} />
-          <Route path="register" element={<Register />} />
           <Route path="contact" element={<Contact />} />
           <Route path="blog-details1" element={<BlogDetails1 />} />
           <Route path="blog-details2" element={<BlogDetails2 />} />

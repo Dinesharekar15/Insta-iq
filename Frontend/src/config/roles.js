@@ -1,5 +1,6 @@
 // Role-based access control configuration
 export const ROLES = {
+  ADMIN: 'admin',
   SUPER_ADMIN: 'super admin',
   JUNIOR_ADMIN: 'junior admin',
   INSTRUCTOR: 'instructor',
@@ -25,6 +26,7 @@ export const PERMISSIONS = {
   EDIT_COURSES: 'edit_courses',
   DELETE_COURSES: 'delete_courses',
   PUBLISH_COURSES: 'publish_courses',
+  MANAGE_COURSES: 'manage_courses',
   
   // Event management permissions
   VIEW_EVENTS: 'view_events',
@@ -55,6 +57,39 @@ export const PERMISSIONS = {
 
 // Role permissions mapping
 export const ROLE_PERMISSIONS = {
+  [ROLES.ADMIN]: [
+    // Full admin access (same as super admin)
+    PERMISSIONS.VIEW_DASHBOARD,
+    PERMISSIONS.VIEW_ANALYTICS,
+    PERMISSIONS.VIEW_USERS,
+    PERMISSIONS.CREATE_USERS,
+    PERMISSIONS.EDIT_USERS,
+    PERMISSIONS.DELETE_USERS,
+    PERMISSIONS.MANAGE_USER_ROLES,
+    PERMISSIONS.VIEW_COURSES,
+    PERMISSIONS.CREATE_COURSES,
+    PERMISSIONS.EDIT_COURSES,
+    PERMISSIONS.DELETE_COURSES,
+    PERMISSIONS.PUBLISH_COURSES,
+    PERMISSIONS.VIEW_EVENTS,
+    PERMISSIONS.CREATE_EVENTS,
+    PERMISSIONS.EDIT_EVENTS,
+    PERMISSIONS.DELETE_EVENTS,
+    PERMISSIONS.VIEW_CONTENT,
+    PERMISSIONS.CREATE_CONTENT,
+    PERMISSIONS.EDIT_CONTENT,
+    PERMISSIONS.DELETE_CONTENT,
+    PERMISSIONS.PUBLISH_CONTENT,
+    PERMISSIONS.VIEW_ORDERS,
+    PERMISSIONS.MANAGE_ORDERS,
+    PERMISSIONS.VIEW_REVENUE,
+    PERMISSIONS.VIEW_SETTINGS,
+    PERMISSIONS.EDIT_SETTINGS,
+    PERMISSIONS.VIEW_PROFILE,
+    PERMISSIONS.EDIT_PROFILE,
+    PERMISSIONS.MANAGE_COURSES
+  ],
+  
   [ROLES.SUPER_ADMIN]: [
     // Full access to everything
     PERMISSIONS.VIEW_DASHBOARD,
@@ -84,7 +119,8 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.VIEW_SETTINGS,
     PERMISSIONS.EDIT_SETTINGS,
     PERMISSIONS.VIEW_PROFILE,
-    PERMISSIONS.EDIT_PROFILE
+    PERMISSIONS.EDIT_PROFILE,
+    PERMISSIONS.MANAGE_COURSES
   ],
   
   [ROLES.JUNIOR_ADMIN]: [
@@ -135,6 +171,18 @@ export const ROLE_PERMISSIONS = {
 
 // Menu items configuration based on roles
 export const MENU_ITEMS = {
+  [ROLES.ADMIN]: [
+    { path: "/admin", icon: "fas fa-tachometer-alt", label: "Dashboard", permission: PERMISSIONS.VIEW_DASHBOARD },
+    { path: "/admin/users", icon: "fas fa-users", label: "User Management", permission: PERMISSIONS.VIEW_USERS },
+    { path: "/admin/roles", icon: "fas fa-user-shield", label: "Role Management", permission: PERMISSIONS.MANAGE_USER_ROLES },
+    { path: "/admin/courses", icon: "fas fa-book", label: "Course Management", permission: PERMISSIONS.VIEW_COURSES },
+    { path: "/admin/events", icon: "fas fa-calendar-alt", label: "Event Management", permission: PERMISSIONS.VIEW_EVENTS },
+    { path: "/admin/testimonials", icon: "fas fa-comments", label: "Testimonials", permission: PERMISSIONS.VIEW_CONTENT },
+    { path: "/admin/orders", icon: "fas fa-shopping-cart", label: "Order Management", permission: PERMISSIONS.VIEW_ORDERS },
+    { path: "/admin/settings", icon: "fas fa-cog", label: "Settings", permission: PERMISSIONS.VIEW_SETTINGS },
+    { path: "/admin/profile", icon: "fas fa-user", label: "Profile", permission: PERMISSIONS.VIEW_PROFILE }
+  ],
+  
   [ROLES.SUPER_ADMIN]: [
     { path: "/admin", icon: "fas fa-tachometer-alt", label: "Dashboard", permission: PERMISSIONS.VIEW_DASHBOARD },
     { path: "/admin/users", icon: "fas fa-users", label: "User Management", permission: PERMISSIONS.VIEW_USERS },

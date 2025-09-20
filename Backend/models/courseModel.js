@@ -29,6 +29,27 @@ const courseSchema = mongoose.Schema(
       type: Number,
       default: 0,
     },
+    duration: {
+      type: String, // e.g., "4 weeks", "2 hours"
+      default: "N/A"
+    },
+    level: {
+      type: String,
+      enum: ['Beginner', 'Intermediate', 'Advanced'],
+      default: 'Beginner'
+    },
+    instructor: {
+      type: String,
+      default: 'InstaIQ Team'
+    },
+    category: {
+      type: String,
+      default: 'General'
+    },
+    isActive: {
+      type: Boolean,
+      default: true
+    },
     details: [ // NEW FIELD: Array of strings for course details/features
       {
         type: String,

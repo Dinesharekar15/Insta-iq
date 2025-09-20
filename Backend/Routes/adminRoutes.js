@@ -3,10 +3,12 @@ import {
   createCourse,
   updateCourse,
   deleteCourse,
+  getAllCourses,
   getAllUsers,
   getUserById,
   deleteUser,
-  
+  createUser,
+  updateUser,
 } from '../controllers/adminController.js';
 import {createBlog,updateBlog,deleteBlog} from '../controllers/blogController.js'
 import { createEvent, updateEvent, deleteEvent } from '../controllers/eventController.js';
@@ -16,13 +18,14 @@ import { uploadImage } from '../middelwares/uploadMiddleware.js'; // New: Import
 
 const router = express.Router();
 
-// All admin routes will be protected and require 'admin' role
+// All admin routes will be protected and require admin-level roles
 router.use(protect); // Ensure user is authenticated
-router.use(authorizeRoles('admin')); // Ensure user has admin role
+router.use(authorizeRoles('admin', 'super admin')); // Ensure user has admin or super admin role
 
 // Course Management Routes
 // For creating a course, we now expect an 'image' file field
 router.route('/courses')
+  .get(getAllCourses)                 // Get all courses with pagination
   .post(uploadImage, createCourse); // Added uploadImage middleware
 
 // For updating a course, we also allow image upload
@@ -34,12 +37,14 @@ router.route('/courses/:id')
 // New route to get users who purchased a specific course
 router.get('/courses/:id/purchasers', getCoursePurchasedByUsers);
 
-// User Management Routes (Optional)
+// User Management Routes (Complete CRUD)
 router.route('/users')
-  .get(getAllUsers); // Get all users
+  .get(getAllUsers)    // Get all users with pagination and search
+  .post(createUser);   // Create a new user
 
 router.route('/users/:id')
-  .get(getUserById)   // Get a single user by ID
+  .get(getUserById)    // Get a single user by ID
+  .put(updateUser)     // Update a user
   .delete(deleteUser); // Delete a user
 
 

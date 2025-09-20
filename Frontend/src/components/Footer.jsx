@@ -1,8 +1,11 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../utils/auth";
 
 // Modern, minimal footer component
 const Footer = () => {
+  const { isAuthenticated } = useAuth();
+  
   return (
     <footer style={{
       background: '#1a1a1a',
@@ -133,33 +136,36 @@ const Footer = () => {
             }}>
               Join thousands of students who have successfully cracked their dream jobs with InstaIQ.
             </p>
-                         <Link 
-               to="/register" 
-               style={{
-                 display: 'inline-block',
-                 background: 'linear-gradient(135deg, #4c1864 0%, #6a1b9a 100%)',
-                 color: '#ffffff',
-                 padding: '12px 24px',
-                 borderRadius: '6px',
-                 textDecoration: 'none',
-                 fontSize: '14px',
-                 fontWeight: '500',
-                 textTransform: 'uppercase',
-                 letterSpacing: '0.5px',
-                 transition: 'all 0.3s ease',
-                 border: 'none'
-               }}
-               onMouseOver={(e) => {
-                 e.target.style.transform = 'translateY(-2px)';
-                 e.target.style.boxShadow = '0 4px 12px rgba(76, 24, 100, 0.3)';
-               }}
-               onMouseOut={(e) => {
-                 e.target.style.transform = 'translateY(0)';
-                 e.target.style.boxShadow = 'none';
-               }}
-             >
-               Register Now
-             </Link>
+            {/* Only show Register button for unauthenticated users */}
+            {!isAuthenticated && (
+              <Link 
+                to="/register" 
+                style={{
+                  display: 'inline-block',
+                  background: 'linear-gradient(135deg, #4c1864 0%, #6a1b9a 100%)',
+                  color: '#ffffff',
+                  padding: '12px 24px',
+                  borderRadius: '6px',
+                  textDecoration: 'none',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                  transition: 'all 0.3s ease',
+                  border: 'none'
+                }}
+                onMouseOver={(e) => {
+                  e.target.style.transform = 'translateY(-2px)';
+                  e.target.style.boxShadow = '0 4px 12px rgba(76, 24, 100, 0.3)';
+                }}
+                onMouseOut={(e) => {
+                  e.target.style.transform = 'translateY(0)';
+                  e.target.style.boxShadow = 'none';
+                }}
+              >
+                Register Now
+              </Link>
+            )}
           </div>
         </div>
 

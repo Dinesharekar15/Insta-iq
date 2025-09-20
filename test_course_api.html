@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Course API</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        button { padding: 10px 15px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .result { background: #f8f9fa; padding: 10px; margin: 10px 0; border-radius: 3px; white-space: pre-wrap; }
+        .error { background: #f8d7da; color: #721c24; }
+        .success { background: #d4edda; color: #155724; }
+    </style>
+</head>
+<body>
+    <h1>Course Management API Test</h1>
+    
+    <div class="test-section">
+        <h2>Test 1: Get All Courses</h2>
+        <button onclick="testGetCourses()">Get Courses</button>
+        <div id="courses-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 2: Create Course with Image Upload</h2>
+        <form id="course-form">
+            <input type="text" id="title" placeholder="Course Title" required><br><br>
+            <textarea id="description" placeholder="Course Description" required></textarea><br><br>
+            <input type="number" id="price" placeholder="Price" step="0.01" required><br><br>
+            <input type="text" id="duration" placeholder="Duration (e.g., 4 weeks)" required><br><br>
+            <input type="text" id="category" placeholder="Category" required><br><br>
+            <select id="level" required>
+                <option value="Beginner">Beginner</option>
+                <option value="Intermediate">Intermediate</option>
+                <option value="Advanced">Advanced</option>
+            </select><br><br>
+            <input type="text" id="instructor" placeholder="Instructor" value="InstaIQ Team"><br><br>
+            <input type="file" id="image" accept="image/*"><br><br>
+            <input type="text" id="details" placeholder="Course details (comma separated)"><br><br>
+            <button type="submit">Create Course</button>
+        </form>
+        <div id="create-result" class="result"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000/api';
+        
+        // Mock user info for testing - replace with actual token
+        const mockToken = 'your_admin_token_here';
+        
+        async function testGetCourses() {
+            const resultDiv = document.getElementById('courses-result');
+            resultDiv.textContent = 'Loading...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/admin/courses?page=1&limit=10`, {
+                    headers: {
+                        'Authorization': `Bearer ${mockToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = JSON.stringify(data, null, 2);
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `Error: ${data.message || 'Failed to fetch courses'}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `Network Error: ${error.message}`;
+            }
+        }
+        
+        document.getElementById('course-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const resultDiv = document.getElementById('create-result');
+            resultDiv.textContent = 'Creating course...';
+            
+            try {
+                const formData = new FormData();
+                
+                // Add form fields
+                formData.append('title', document.getElementById('title').value);
+                formData.append('description', document.getElementById('description').value);
+                formData.append('price', document.getElementById('price').value);
+                formData.append('duration', document.getElementById('duration').value);
+                formData.append('category', document.getElementById('category').value);
+                formData.append('level', document.getElementById('level').value);
+                formData.append('instructor', document.getElementById('instructor').value);
+                formData.append('isActive', 'true');
+                
+                // Add details as JSON string
+                const detailsText = document.getElementById('details').value;
+                const detailsArray = detailsText ? detailsText.split(',').map(d => d.trim()) : [];
+                formData.append('details', JSON.stringify(detailsArray));
+                
+                // Add image file if selected
+                const imageFile = document.getElementById('image').files[0];
+                if (imageFile) {
+                    formData.append('image', imageFile);
+                }
+                
+                const response = await fetch(`${API_BASE}/admin/courses`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${mockToken}`
+                    },
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = JSON.stringify(data, null, 2);
+                    document.getElementById('course-form').reset();
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `Error: ${data.message || 'Failed to create course'}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `Network Error: ${error.message}`;
+            }
+        });
+    </script>
+</body>
+</html>
