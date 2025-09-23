@@ -166,3 +166,4 @@ const uploadImageLocal = asyncHandler(async (req, res, next) => {
 });
 
 export { uploadImage, uploadImageLocal };
+export default upload;

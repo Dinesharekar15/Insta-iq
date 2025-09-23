@@ -373,6 +373,7 @@ export const AdminProvider = ({ children }) => {
     setupDemoAdmin();
     fetchCoursesData();
     fetchEventsData();
+    fetchTestimonialsData();
   }, []);
 
   const fetchCoursesData = async () => {
@@ -543,53 +544,204 @@ export const AdminProvider = ({ children }) => {
     }
   };
 
+  // Fetch testimonials from backend
+  const fetchTestimonialsData = async () => {
+    try {
+      // Fetch client and student testimonials separately
+      const [clientResponse, studentResponse] = await Promise.all([
+        axios.get(`${API_BASE_URL}/client-testimonials`, {
+          headers: getAuthHeaders()
+        }),
+        axios.get(`${API_BASE_URL}/student-testimonials`, {
+          headers: getAuthHeaders()
+        })
+      ]);
+      
+      if (clientResponse.data.success) {
+        // Map client testimonials to match old structure
+        const clientTestimonials = clientResponse.data.data.map(testimonial => ({
+          ...testimonial,
+          content: testimonial.testimonial, // Map testimonial field to content
+          image: testimonial.imageUrl, // Map imageUrl to image
+          type: 'client',
+          role: 'Client', // Default role for clients
+          status: 'published'
+        }));
+        setClientTestimonials(clientTestimonials);
+      }
+      
+      if (studentResponse.data.success) {
+        // Map student testimonials to match old structure
+        const studentTestimonials = studentResponse.data.data.map(testimonial => ({
+          ...testimonial,
+          content: testimonial.testimonial, // Map testimonial field to content
+          image: testimonial.imageUrl, // Map imageUrl to image
+          course: testimonial.college, // Map college back to course for UI compatibility
+          type: 'student',
+          role: 'Student', // Default role for students
+          status: 'published'
+        }));
+        setStudentTestimonials(studentTestimonials);
+      }
+    } catch (error) {
+      console.error("Error fetching testimonials:", error);
+      setError(error.response?.data?.message || error.message);
+    }
+  };
+
   // Testimonials management functions
-  const addClientTestimonial = (testimonialData) => {
-    const newTestimonial = {
-      _id: `client_${Date.now()}`,
-      ...testimonialData,
-      type: "client",
-      status: testimonialData.status || "published",
-      createdAt: new Date().toISOString().split('T')[0]
-    };
-    setClientTestimonials(prev => [...prev, newTestimonial]);
-    return { success: true, testimonial: newTestimonial };
+  const addClientTestimonial = async (testimonialData) => {
+    try {
+      const formData = new FormData();
+      formData.append('name', testimonialData.name);
+      formData.append('company', testimonialData.company);
+      formData.append('testimonial', testimonialData.content);
+      
+      if (testimonialData.image && testimonialData.image !== 'https://placehold.co/150x150/000000/FFFFFF?text=Person') {
+        // Check if it's a File object or URL string
+        if (testimonialData.image instanceof File) {
+          formData.append('image', testimonialData.image);
+        } else if (typeof testimonialData.image === 'string' && testimonialData.image.startsWith('http')) {
+          formData.append('imageUrl', testimonialData.image);
+        }
+      }
+      
+      console.log('FormData being sent:');
+      for (let [key, value] of formData.entries()) {
+        console.log(key, value);
+      }
+
+      const response = await axios.post(`${API_BASE_URL}/client-testimonials`, formData, {
+        headers: {
+          ...getAuthHeaders(),
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      if (response.data.success) {
+        await fetchTestimonialsData();
+        return { success: true, testimonial: response.data.data };
+      }
+    } catch (error) {
+      console.error("Error adding client testimonial:", error);
+      throw error;
+    }
   };
 
-  const updateClientTestimonial = (testimonialId, updatedData) => {
-    setClientTestimonials(prev => prev.map(testimonial => 
-      testimonial._id === testimonialId ? { ...testimonial, ...updatedData } : testimonial
-    ));
-    return { success: true };
+  const updateClientTestimonial = async (testimonialId, updatedData) => {
+    try {
+      const formData = new FormData();
+      formData.append('name', updatedData.name);
+      formData.append('company', updatedData.company);
+      formData.append('testimonial', updatedData.content);
+      
+      if (updatedData.image && updatedData.image !== 'https://placehold.co/150x150/000000/FFFFFF?text=Person') {
+        formData.append('image', updatedData.image);
+      }
+
+      const response = await axios.put(`${API_BASE_URL}/client-testimonials/${testimonialId}`, formData, {
+        headers: {
+          ...getAuthHeaders(),
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      if (response.data.success) {
+        await fetchTestimonialsData();
+        return { success: true };
+      }
+    } catch (error) {
+      console.error("Error updating client testimonial:", error);
+      throw error;
+    }
   };
 
-  const deleteClientTestimonial = (testimonialId) => {
-    setClientTestimonials(prev => prev.filter(testimonial => testimonial._id !== testimonialId));
-    return { success: true };
+  const deleteClientTestimonial = async (testimonialId) => {
+    try {
+      const response = await axios.delete(`${API_BASE_URL}/client-testimonials/${testimonialId}`, {
+        headers: getAuthHeaders()
+      });
+
+      if (response.data.success) {
+        await fetchTestimonialsData();
+        return { success: true };
+      }
+    } catch (error) {
+      console.error("Error deleting client testimonial:", error);
+      throw error;
+    }
   };
 
-  const addStudentTestimonial = (testimonialData) => {
-    const newTestimonial = {
-      _id: `student_${Date.now()}`,
-      ...testimonialData,
-      type: "student",
-      status: testimonialData.status || "published",
-      createdAt: new Date().toISOString().split('T')[0]
-    };
-    setStudentTestimonials(prev => [...prev, newTestimonial]);
-    return { success: true, testimonial: newTestimonial };
+  const addStudentTestimonial = async (testimonialData) => {
+    try {
+      const formData = new FormData();
+      formData.append('name', testimonialData.name);
+      formData.append('college', testimonialData.course); // Map course to college
+      formData.append('testimonial', testimonialData.content);
+      
+      if (testimonialData.image && testimonialData.image !== 'https://placehold.co/150x150/000000/FFFFFF?text=Person') {
+        formData.append('image', testimonialData.image);
+      }
+
+      const response = await axios.post(`${API_BASE_URL}/student-testimonials`, formData, {
+        headers: {
+          ...getAuthHeaders(),
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      if (response.data.success) {
+        await fetchTestimonialsData();
+        return { success: true, testimonial: response.data.data };
+      }
+    } catch (error) {
+      console.error("Error adding student testimonial:", error);
+      throw error;
+    }
   };
 
-  const updateStudentTestimonial = (testimonialId, updatedData) => {
-    setStudentTestimonials(prev => prev.map(testimonial => 
-      testimonial._id === testimonialId ? { ...testimonial, ...updatedData } : testimonial
-    ));
-    return { success: true };
+  const updateStudentTestimonial = async (testimonialId, updatedData) => {
+    try {
+      const formData = new FormData();
+      formData.append('name', updatedData.name);
+      formData.append('college', updatedData.course); // Map course to college
+      formData.append('testimonial', updatedData.content);
+      
+      if (updatedData.image && updatedData.image !== 'https://placehold.co/150x150/000000/FFFFFF?text=Person') {
+        formData.append('image', updatedData.image);
+      }
+
+      const response = await axios.put(`${API_BASE_URL}/student-testimonials/${testimonialId}`, formData, {
+        headers: {
+          ...getAuthHeaders(),
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      if (response.data.success) {
+        await fetchTestimonialsData();
+        return { success: true };
+      }
+    } catch (error) {
+      console.error("Error updating student testimonial:", error);
+      throw error;
+    }
   };
 
-  const deleteStudentTestimonial = (testimonialId) => {
-    setStudentTestimonials(prev => prev.filter(testimonial => testimonial._id !== testimonialId));
-    return { success: true };
+  const deleteStudentTestimonial = async (testimonialId) => {
+    try {
+      const response = await axios.delete(`${API_BASE_URL}/student-testimonials/${testimonialId}`, {
+        headers: getAuthHeaders()
+      });
+
+      if (response.data.success) {
+        await fetchTestimonialsData();
+        return { success: true };
+      }
+    } catch (error) {
+      console.error("Error deleting student testimonial:", error);
+      throw error;
+    }
   };
 
   // Get statistics for dashboard
@@ -634,7 +786,8 @@ export const AdminProvider = ({ children }) => {
     updateStudentTestimonial,
     deleteStudentTestimonial,
     getStats,
-    refreshCourses: fetchCoursesData
+    refreshCourses: fetchCoursesData,
+    refreshTestimonials: fetchTestimonialsData
   };
 
   return (

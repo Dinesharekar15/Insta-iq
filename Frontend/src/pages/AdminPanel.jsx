@@ -6,7 +6,7 @@ import EventManagement from "./admin/EventManagement";
 import UserManagement from "./admin/UserManagement";
 import RoleManagement from "./admin/RoleManagement";
 import OrderManagement from "./admin/OrderManagement";
-import TestimonialsManagement from "./admin/TestimonialsManagement";
+import TestimonialManagement from "./admin/TestimonialManagement";
 import AdminProfile from "./admin/AdminProfile";
 import Settings from "./admin/Settings";
 import BackToTop from "../components/BackToTop";
@@ -378,7 +378,7 @@ const AdminPanel = () => {
             } />
             <Route path="testimonials" element={
               <PermissionGuard userRole={userRole} requiredPermissions={[PERMISSIONS.VIEW_CONTENT]}>
-                <TestimonialsManagement />
+                <TestimonialManagement />
               </PermissionGuard>
             } />
             <Route path="users" element={

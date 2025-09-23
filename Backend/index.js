@@ -9,6 +9,8 @@ import contactRoutes from './Routes/contactRoutes.js';
 import adminRoutes from './Routes/adminRoutes.js'; // New: Import admin routes
 import eventRoutes from './Routes/eventRoutes.js'; // New: Import event routes
 import blogRoutes from './Routes/blogRoutes.js'; // New: Import blog routes
+import clientTestimonialRoutes from './Routes/clientTestimonialRoutes.js'; // New: Import client testimonial routes
+import studentTestimonialRoutes from './Routes/studentTestimonialRoutes.js'; // New: Import student testimonial routes
 import testRoutes from './Routes/testRoutes.js'; // New: Import test routes
 
 // Load environment variables
@@ -37,6 +39,8 @@ app.use('/api/contact', contactRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/events', eventRoutes); // New: Mount event routes
 app.use('/api/blogs', blogRoutes); // New: Mount blog routes
+app.use('/api/client-testimonials', clientTestimonialRoutes); // New: Mount client testimonial routes
+app.use('/api/student-testimonials', studentTestimonialRoutes); // New: Mount student testimonial routes
 app.use('/api/test', testRoutes); // New: Mount test routes
 // Error handling middleware (for asyncHandler errors)
 app.use((err, req, res, next) => {
