@@ -5,7 +5,6 @@ const OrderManagement = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
-  const [filterPayment, setFilterPayment] = useState("all");
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderModal, setShowOrderModal] = useState(false);
 
@@ -101,21 +100,7 @@ const OrderManagement = () => {
     }, 1000);
   }, []);
 
-  const handleStatusChange = (orderId, newStatus) => {
-    setOrders(prev => prev.map(order => 
-      order.id === orderId ? { ...order, orderStatus: newStatus } : order
-    ));
-  };
 
-  const handlePaymentStatusChange = (orderId, newStatus) => {
-    setOrders(prev => prev.map(order => 
-      order.id === orderId ? { 
-        ...order, 
-        paymentStatus: newStatus,
-        paymentDate: newStatus === 'completed' ? new Date().toISOString().split('T')[0] : null
-      } : order
-    ));
-  };
 
   const handleViewOrder = (order) => {
     setSelectedOrder(order);
@@ -128,8 +113,7 @@ const OrderManagement = () => {
                          order.user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          order.course.title.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = filterStatus === "all" || order.orderStatus === filterStatus;
-    const matchesPayment = filterPayment === "all" || order.paymentStatus === filterPayment;
-    return matchesSearch && matchesStatus && matchesPayment;
+    return matchesSearch && matchesStatus;
   });
 
   const getStatusColor = (status) => {
@@ -142,14 +126,7 @@ const OrderManagement = () => {
     }
   };
 
-  const getPaymentStatusColor = (status) => {
-    switch (status) {
-      case 'pending': return { background: '#fff3cd', color: '#856404' };
-      case 'completed': return { background: '#d4edda', color: '#155724' };
-      case 'failed': return { background: '#f8d7da', color: '#721c24' };
-      default: return { background: '#f8f9fa', color: '#6c757d' };
-    }
-  };
+
 
   const getTotalRevenue = () => {
     return orders
@@ -157,9 +134,7 @@ const OrderManagement = () => {
       .reduce((total, order) => total + parseInt(order.amount.replace('₹', '').replace(',', '')), 0);
   };
 
-  const getPendingPayments = () => {
-    return orders.filter(order => order.paymentStatus === 'pending').length;
-  };
+
 
   if (loading) {
     return (
@@ -243,61 +218,7 @@ const OrderManagement = () => {
           </div>
         </div>
 
-        <div style={{
-          background: '#fff',
-          borderRadius: '10px',
-          padding: '20px',
-          boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-          border: '1px solid #eee'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center' }}>
-            <div style={{
-              width: '50px',
-              height: '50px',
-              borderRadius: '10px',
-              background: '#ffc107',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginRight: '15px'
-            }}>
-              <i className="fa fa-clock-o" style={{ color: 'white', fontSize: '20px' }}></i>
-            </div>
-            <div>
-              <div style={{ fontSize: '14px', color: '#666' }}>Pending Payments</div>
-              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#333' }}>{getPendingPayments()}</div>
-            </div>
-          </div>
-        </div>
 
-        <div style={{
-          background: '#fff',
-          borderRadius: '10px',
-          padding: '20px',
-          boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-          border: '1px solid #eee'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center' }}>
-            <div style={{
-              width: '50px',
-              height: '50px',
-              borderRadius: '10px',
-              background: '#dc3545',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginRight: '15px'
-            }}>
-              <i className="fa fa-check-circle" style={{ color: 'white', fontSize: '20px' }}></i>
-            </div>
-            <div>
-              <div style={{ fontSize: '14px', color: '#666' }}>Completed Orders</div>
-              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#333' }}>
-                {orders.filter(order => order.orderStatus === 'delivered').length}
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Filters and Search */}
@@ -309,7 +230,7 @@ const OrderManagement = () => {
         boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
         border: '1px solid #eee'
       }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', alignItems: 'end' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', alignItems: 'end' }}>
           <div>
             <label style={{ display: 'block', marginBottom: '8px', color: '#666', fontSize: '14px' }}>
               Search Orders
@@ -350,27 +271,6 @@ const OrderManagement = () => {
               <option value="cancelled">Cancelled</option>
             </select>
           </div>
-          <div>
-            <label style={{ display: 'block', marginBottom: '8px', color: '#666', fontSize: '14px' }}>
-              Filter by Payment Status
-            </label>
-            <select
-              value={filterPayment}
-              onChange={(e) => setFilterPayment(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '10px',
-                border: '1px solid #ddd',
-                borderRadius: '5px',
-                fontSize: '14px'
-              }}
-            >
-              <option value="all">All Payments</option>
-              <option value="pending">Pending</option>
-              <option value="completed">Completed</option>
-              <option value="failed">Failed</option>
-            </select>
-          </div>
         </div>
       </div>
 
@@ -390,10 +290,8 @@ const OrderManagement = () => {
                 <th style={{ textAlign: 'left', padding: '15px 0', color: '#333', fontWeight: 'bold' }}>Customer</th>
                 <th style={{ textAlign: 'left', padding: '15px 0', color: '#333', fontWeight: 'bold' }}>Course</th>
                 <th style={{ textAlign: 'left', padding: '15px 0', color: '#333', fontWeight: 'bold' }}>Amount</th>
-                <th style={{ textAlign: 'left', padding: '15px 0', color: '#333', fontWeight: 'bold' }}>Payment Status</th>
                 <th style={{ textAlign: 'left', padding: '15px 0', color: '#333', fontWeight: 'bold' }}>Order Status</th>
                 <th style={{ textAlign: 'left', padding: '15px 0', color: '#333', fontWeight: 'bold' }}>Date</th>
-                <th style={{ textAlign: 'left', padding: '15px 0', color: '#333', fontWeight: 'bold' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -432,18 +330,6 @@ const OrderManagement = () => {
                       fontSize: '12px',
                       fontWeight: 'bold',
                       textTransform: 'capitalize',
-                      ...getPaymentStatusColor(order.paymentStatus)
-                    }}>
-                      {order.paymentStatus}
-                    </span>
-                  </td>
-                  <td style={{ padding: '15px 0' }}>
-                    <span style={{
-                      padding: '4px 12px',
-                      borderRadius: '20px',
-                      fontSize: '12px',
-                      fontWeight: 'bold',
-                      textTransform: 'capitalize',
                       ...getStatusColor(order.orderStatus)
                     }}>
                       {order.orderStatus}
@@ -451,55 +337,6 @@ const OrderManagement = () => {
                   </td>
                   <td style={{ padding: '15px 0', color: '#666', fontSize: '14px' }}>
                     {new Date(order.orderDate).toLocaleDateString()}
-                  </td>
-                  <td style={{ padding: '15px 0' }}>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button
-                        onClick={() => handleViewOrder(order)}
-                        style={{
-                          background: '#007bff',
-                          color: 'white',
-                          border: 'none',
-                          padding: '6px 12px',
-                          borderRadius: '4px',
-                          cursor: 'pointer',
-                          fontSize: '12px'
-                        }}
-                      >
-                        <i className="fa fa-eye"></i>
-                      </button>
-                      <select
-                        value={order.orderStatus}
-                        onChange={(e) => handleStatusChange(order.id, e.target.value)}
-                        style={{
-                          padding: '4px 8px',
-                          border: '1px solid #ddd',
-                          borderRadius: '4px',
-                          fontSize: '12px',
-                          background: '#fff'
-                        }}
-                      >
-                        <option value="pending">Pending</option>
-                        <option value="processing">Processing</option>
-                        <option value="delivered">Delivered</option>
-                        <option value="cancelled">Cancelled</option>
-                      </select>
-                      <select
-                        value={order.paymentStatus}
-                        onChange={(e) => handlePaymentStatusChange(order.id, e.target.value)}
-                        style={{
-                          padding: '4px 8px',
-                          border: '1px solid #ddd',
-                          borderRadius: '4px',
-                          fontSize: '12px',
-                          background: '#fff'
-                        }}
-                      >
-                        <option value="pending">Pending</option>
-                        <option value="completed">Completed</option>
-                        <option value="failed">Failed</option>
-                      </select>
-                    </div>
                   </td>
                 </tr>
               ))}

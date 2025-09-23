@@ -140,7 +140,7 @@ const Search = () => {
                             <div key={event._id} className="col-md-4 col-sm-6 mb-4">
                               <div style={{ border: '1px solid #ddd', borderRadius: '8px', padding: '15px', height: '100%' }}>
                                 <img 
-                                  src={event.img || "/assets/images/event/1.png"} 
+                                  src={event.imageUrl || event.img || "/assets/images/event/1.png"} 
                                   alt={event.title}
                                   style={{ width: '100%', height: '150px', objectFit: 'cover', borderRadius: '6px', marginBottom: '10px' }}
                                 />

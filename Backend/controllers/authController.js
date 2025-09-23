@@ -178,4 +178,68 @@ const verifyOTP = asyncHandler(async (req, res) => {
   }
 });
 
-export { registerUser, loginUser, sendOTP, verifyOTP };
+// @desc    Get current admin profile
+// @route   GET /api/admin/profile
+// @access  Private/Admin
+const getAdminProfile = asyncHandler(async (req, res) => {
+  // req.user should be populated by the protect middleware
+  const user = await User.findById(req.user._id).select('-password');
+
+  if (user) {
+    res.json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      mobile: user.mobile,
+      role: user.role,
+      status: user.status,
+      createdAt: user.createdAt,
+    });
+  } else {
+    res.status(404);
+    throw new Error('User not found');
+  }
+});
+
+// @desc    Update admin profile
+// @route   PUT /api/admin/profile
+// @access  Private/Admin
+const updateAdminProfile = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id);
+
+  if (user) {
+    // Update fields if provided
+    user.name = req.body.name || user.name;
+    user.email = req.body.email || user.email;
+    user.mobile = req.body.mobile || user.mobile;
+    
+    // Only admin can update role and status
+    if (req.body.role && ['admin', 'junior admin', 'super admin'].includes(req.body.role)) {
+      user.role = req.body.role;
+    }
+    
+    if (req.body.status && ['active', 'inactive'].includes(req.body.status)) {
+      user.status = req.body.status;
+    }
+
+    const updatedUser = await user.save();
+
+    res.json({
+      message: 'Profile updated successfully',
+      user: {
+        _id: updatedUser._id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        mobile: updatedUser.mobile,
+        role: updatedUser.role,
+        status: updatedUser.status,
+        createdAt: updatedUser.createdAt,
+      }
+    });
+  } else {
+    res.status(404);
+    throw new Error('User not found');
+  }
+});
+
+export { registerUser, loginUser, sendOTP, verifyOTP, getAdminProfile, updateAdminProfile };

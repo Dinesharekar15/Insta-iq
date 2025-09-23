@@ -105,6 +105,7 @@ const Home = () => {
   // Add CSS for smooth transitions and hide arrow buttons
   useEffect(() => {
     const style = document.createElement('style');
+    style.setAttribute('data-testimonial-styles', 'true');
     style.textContent = `
       .testimonial-bx {
         transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out !important;
@@ -157,10 +158,22 @@ const Home = () => {
         -webkit-box-orient: vertical !important;
       }
     `;
-    document.head.appendChild(style);
+    
+    // Check if this style element already exists to prevent duplicates
+    const existingStyle = document.querySelector('style[data-testimonial-styles="true"]');
+    if (!existingStyle) {
+      document.head.appendChild(style);
+    }
+    
     return () => {
-      if (style.parentNode) {
-        style.parentNode.removeChild(style);
+      try {
+        // More robust cleanup - check if element still exists and has a parent
+        if (style && style.parentNode && document.head.contains(style)) {
+          document.head.removeChild(style);
+        }
+      } catch (error) {
+        // Silently handle any removal errors
+        console.warn('Style cleanup warning:', error.message);
       }
     };
   }, []);
@@ -609,7 +622,10 @@ const Home = () => {
             </div>
           </div>
           <div className="row">
-            <div className="upcoming-event-carousel owl-carousel owl-btn-center-lr owl-btn-1 col-12 p-lr0 m-b30">
+            <div 
+              key={`events-carousel-${(adminEvents && adminEvents.length > 0 ? adminEvents.filter(e => e.status === 'upcoming') : allEvents).length}`}
+              className="upcoming-event-carousel owl-carousel owl-btn-center-lr owl-btn-1 col-12 p-lr0 m-b30"
+            >
               {(adminEvents && adminEvents.length > 0 ? adminEvents.filter(e => e.status === 'upcoming') : allEvents).map((event, idx) => (
                 <div className="item" key={event._id || event.title + idx}>
                   <div className="event-bx" style={{ 
@@ -634,7 +650,7 @@ const Home = () => {
                   }}>
                     <div className="action-box" style={{ position: 'relative' }}>
                       <img 
-                        src={event.img} 
+                        src={event.imageUrl || event.img || 'https://placehold.co/600x400/000000/FFFFFF?text=Event+Image'} 
                         alt={event.title} 
                         style={{ 
                           width: '100%', 
@@ -726,7 +742,10 @@ const Home = () => {
             ) : courses.length === 0 ? (
               <p>No courses available at the moment.</p>
             ) : (
-              <div className="courses-carousel owl-carousel owl-btn-1 col-12 p-lr0">
+              <div 
+                key={`courses-carousel-${courses.length}`}
+                className="courses-carousel owl-carousel owl-btn-1 col-12 p-lr0"
+              >
                 {courses.map((course) => (
                   <div className="item" key={course._id}>
                     <div className="cours-bx d-flex flex-column h-100" style={{
@@ -833,7 +852,10 @@ const Home = () => {
             <div className="col-md-6">
               <div className="testimonial-section">
                 <h3 className="text-white text-center" style={{ fontSize: '24px', fontWeight: '600', marginBottom: '30px' }}>Client Feedback</h3>
-                <div className="client-testimonial-carousel owl-carousel col-12 p-lr0">
+                <div 
+                  key={`client-testimonial-carousel-${clientTestimonials.length}`}
+                  className="client-testimonial-carousel owl-carousel col-12 p-lr0"
+                >
                   {clientTestimonials.map((testimonial, idx) => (
                     <div className="item" key={testimonial._id || testimonial.name + idx}>
                       <div className="testimonial-bx" style={{ 
@@ -884,7 +906,7 @@ const Home = () => {
             <div className="col-md-6">
               <div className="testimonial-section">
                 <h3 className="text-white text-center" style={{ fontSize: '24px', fontWeight: '600', marginBottom: '30px' }}>Students Testimonials</h3>
-                <div className="student-testimonial-carousel owl-carousel col-12 p-lr0">
+                <div className="student-testimonial-carousel owl-carousel col-12 p-lr0" key={`student-testimonial-carousel-${studentTestimonials.length}`}>
                   {studentTestimonials.map((testimonial, idx) => (
                     <div className="item" key={testimonial._id || testimonial.name + idx}>
                       <div className="testimonial-bx" style={{ 

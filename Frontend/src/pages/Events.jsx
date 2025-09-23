@@ -260,7 +260,7 @@ const Events = () => {
                       e.currentTarget.style.border = '1px solid #444';
                     }}>
                       <div className="action-box" style={{ position: 'relative' }}>
-                        <img src={event.img} alt={event.title} style={{ 
+                        <img src={event.imageUrl || event.img || 'https://placehold.co/600x400/000000/FFFFFF?text=Event+Image'} alt={event.title} style={{ 
                           width: '100%', 
                           height: 180, 
                           objectFit: 'cover', 

@@ -744,6 +744,46 @@ export const AdminProvider = ({ children }) => {
     }
   };
 
+  // Get current admin profile
+  const getAdminProfile = async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/admin/profile`, {
+        headers: getAuthHeaders()
+      });
+      return { success: true, profile: response.data };
+    } catch (error) {
+      console.error("Error fetching admin profile:", error);
+      return { success: false, message: error.response?.data?.message || 'Failed to fetch profile' };
+    }
+  };
+
+  // Update admin profile
+  const updateAdminProfile = async (profileData) => {
+    try {
+      const response = await axios.put(`${API_BASE_URL}/admin/profile`, profileData, {
+        headers: getAuthHeaders()
+      });
+      
+      // Update localStorage with new user info
+      const currentUser = AuthUtils.getCurrentUser();
+      if (currentUser) {
+        const updatedUser = {
+          ...currentUser,
+          name: response.data.user.name,
+          email: response.data.user.email,
+          mobile: response.data.user.mobile,
+          role: response.data.user.role
+        };
+        localStorage.setItem('userInfo', JSON.stringify(updatedUser));
+      }
+      
+      return { success: true, profile: response.data.user, message: response.data.message };
+    } catch (error) {
+      console.error("Error updating admin profile:", error);
+      return { success: false, message: error.response?.data?.message || 'Failed to update profile' };
+    }
+  };
+
   // Get statistics for dashboard
   const getStats = () => {
     // Calculate active paid users (users enrolled in paid courses)
@@ -785,6 +825,8 @@ export const AdminProvider = ({ children }) => {
     addStudentTestimonial,
     updateStudentTestimonial,
     deleteStudentTestimonial,
+    getAdminProfile,
+    updateAdminProfile,
     getStats,
     refreshCourses: fetchCoursesData,
     refreshTestimonials: fetchTestimonialsData

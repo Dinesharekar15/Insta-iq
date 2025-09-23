@@ -12,6 +12,7 @@ import {
 } from '../controllers/adminController.js';
 import {createBlog,updateBlog,deleteBlog} from '../controllers/blogController.js'
 import { createEvent, updateEvent, deleteEvent } from '../controllers/eventController.js';
+import { getAdminProfile, updateAdminProfile } from '../controllers/authController.js';
 import { protect, authorizeRoles } from '../middelwares/auth.js';
 import { getCoursePurchasedByUsers } from '../controllers/adminController.js';
 import { uploadImage } from '../middelwares/uploadMiddleware.js'; // New: Import upload middleware
@@ -21,6 +22,11 @@ const router = express.Router();
 // All admin routes will be protected and require admin-level roles
 router.use(protect); // Ensure user is authenticated
 router.use(authorizeRoles('admin', 'super admin')); // Ensure user has admin or super admin role
+
+// Admin Profile Management Routes
+router.route('/profile')
+  .get(getAdminProfile)     // Get current admin profile
+  .put(updateAdminProfile);  // Update admin profile
 
 // Course Management Routes
 // For creating a course, we now expect an 'image' file field
