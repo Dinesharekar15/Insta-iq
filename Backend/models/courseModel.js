@@ -44,7 +44,9 @@ const courseSchema = mongoose.Schema(
     },
     category: {
       type: String,
-      default: 'General'
+      enum: ['aptitude', 'technical'],
+      required: true,
+      default: 'aptitude'
     },
     isActive: {
       type: Boolean,

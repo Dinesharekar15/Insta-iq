@@ -9,7 +9,7 @@ const eventSchema = mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ['happening', 'upcoming', 'expired'],
+      enum: ['upcoming', 'ongoing', 'complete', 'cancelled'],
       default: 'upcoming', // Default type for new events
       required: true,
     },

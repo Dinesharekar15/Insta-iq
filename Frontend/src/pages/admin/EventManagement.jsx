@@ -8,6 +8,9 @@ const EventManagement = () => {
   const [filterStatus, setFilterStatus] = useState("all");
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState({ text: "", type: "" });
+  const [deletingEventId, setDeletingEventId] = useState(null);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -18,7 +21,7 @@ const EventManagement = () => {
     capacity: "",
     price: "",
     category: "",
-    img: "",
+    imageUrl: "",
     status: "upcoming"
   });
 
@@ -31,6 +34,12 @@ const EventManagement = () => {
     };
   };
 
+  // Show message with auto-hide
+  const showMessage = (text, type = "success") => {
+    setMessage({ text, type });
+    setTimeout(() => setMessage({ text: "", type: "" }), 4000);
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -39,29 +48,66 @@ const EventManagement = () => {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setSubmitting(true);
     
-    // Parse date into day and month format for display
-    const { date: day, month } = parseDateToEvent(formData.date);
-    
-    const eventData = {
-      ...formData,
-      date: day,
-      month: month,
-      capacity: parseInt(formData.capacity) || 0
-    };
-    
-    if (editingEvent) {
-      // Update existing event
-      updateEvent(editingEvent._id, eventData);
-      setEditingEvent(null);
-    } else {
-      // Add new event
-      addEvent(eventData);
+    try {
+      // Parse date into day and month format for display
+      const { date: day, month } = parseDateToEvent(formData.date);
+      
+      // Create FormData for file upload
+      const formDataToSend = new FormData();
+      formDataToSend.append('title', formData.title);
+      formDataToSend.append('desc', formData.description);
+      formDataToSend.append('date', day);
+      formDataToSend.append('month', month);
+      formDataToSend.append('time', formData.time);
+      formDataToSend.append('location', formData.location);
+      formDataToSend.append('type', formData.status);
+      formDataToSend.append('capacity', parseInt(formData.capacity) || 0);
+      
+      // Handle image upload
+      if (formData.imageUrl instanceof File) {
+        formDataToSend.append('image', formData.imageUrl);
+      } else if (formData.imageUrl && typeof formData.imageUrl === 'string') {
+        // If it's already a URL (for existing events), include it
+        formDataToSend.append('imageUrl', formData.imageUrl);
+      }
+      
+      if (editingEvent) {
+        // Update existing event
+        await updateEvent(editingEvent._id, formDataToSend);
+        showMessage("Event updated successfully!", "success");
+        setEditingEvent(null);
+      } else {
+        // Add new event
+        await addEvent(formDataToSend);
+        showMessage("Event created successfully!", "success");
+      }
+      
+      setShowAddModal(false);
+      // Reset form
+      setFormData({
+        title: "",
+        description: "",
+        date: "",
+        month: "",
+        time: "",
+        location: "",
+        capacity: "",
+        price: "",
+        category: "",
+        imageUrl: "",
+        status: "upcoming"
+      });
+    } catch (error) {
+      console.error("Error saving event:", error);
+      showMessage("Failed to save event: " + (error.response?.data?.message || error.message), "error");
+      // Don't close modal so user can try again
+    } finally {
+      setSubmitting(false);
     }
-    
-    setShowAddModal(false);
     setFormData({
       title: "",
       description: "",
@@ -72,32 +118,50 @@ const EventManagement = () => {
       capacity: "",
       price: "",
       category: "",
-      img: "",
+      imageUrl: "",
       status: "upcoming"
     });
   };
 
   const handleEdit = (event) => {
     setEditingEvent(event);
-    setFormData(event);
+    setFormData({
+      ...event,
+      description: event.desc || event.description || '',
+      status: event.type || event.status || 'upcoming',
+      imageUrl: event.imageUrl || event.img || ''
+    });
     setShowAddModal(true);
   };
 
-  const handleDelete = (eventId) => {
+  const handleDelete = async (eventId) => {
     if (window.confirm("Are you sure you want to delete this event?")) {
-      deleteEvent(eventId);
+      setDeletingEventId(eventId);
+      try {
+        await deleteEvent(eventId);
+        showMessage("Event deleted successfully!", "success");
+      } catch (error) {
+        console.error("Error deleting event:", error);
+        showMessage("Failed to delete event: " + (error.response?.data?.message || error.message), "error");
+      } finally {
+        setDeletingEventId(null);
+      }
     }
   };
 
-  const handleStatusChange = (eventId, newStatus) => {
-    updateEvent(eventId, { status: newStatus });
+  const handleStatusChange = async (eventId, newStatus) => {
+    try {
+      await updateEvent(eventId, { type: newStatus });
+    } catch (error) {
+      console.error("Error updating event status:", error);
+    }
   };
 
   const filteredEvents = events.filter(event => {
-    const matchesSearch = event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         event.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         event.location.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = filterStatus === "all" || event.status === filterStatus;
+    const matchesSearch = (event.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (event.desc || event.description || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (event.location || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesFilter = filterStatus === "all" || event.type === filterStatus || event.status === filterStatus;
     return matchesSearch && matchesFilter;
   });
 
@@ -122,6 +186,28 @@ const EventManagement = () => {
 
   return (
     <div>
+      {/* Message Display */}
+      {message.text && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          zIndex: 1000,
+          padding: '12px 20px',
+          borderRadius: '8px',
+          background: message.type === 'success' ? '#d4edda' : '#f8d7da',
+          color: message.type === 'success' ? '#155724' : '#721c24',
+          border: `1px solid ${message.type === 'success' ? '#c3e6cb' : '#f5c6cb'}`,
+          boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+          fontSize: '14px',
+          fontWeight: '500'
+        }}>
+          <i className={`fa ${message.type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}`} 
+             style={{ marginRight: '8px' }}></i>
+          {message.text}
+        </div>
+      )}
+      
       {/* Page Header */}
       <div style={{ marginBottom: '30px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -195,7 +281,7 @@ const EventManagement = () => {
               <option value="all">All Events</option>
               <option value="upcoming">Upcoming</option>
               <option value="ongoing">Ongoing</option>
-              <option value="completed">Completed</option>
+              <option value="complete">Complete</option>
               <option value="cancelled">Cancelled</option>
             </select>
           </div>
@@ -240,7 +326,7 @@ const EventManagement = () => {
                 </span>
               </div>
               <img
-                src={event.img}
+                src={event.imageUrl || event.img || 'https://placehold.co/60x60/000000/FFFFFF?text=Event'}
                 alt={event.title}
                 style={{
                   width: '60px',
@@ -253,7 +339,7 @@ const EventManagement = () => {
             </div>
 
             <p style={{ color: '#666', fontSize: '14px', marginBottom: '15px', lineHeight: '1.5' }}>
-              {event.description.substring(0, 100)}...
+              {(event.desc || event.description || '').substring(0, 100)}...
             </p>
 
             <div style={{ marginBottom: '15px' }}>
@@ -302,19 +388,30 @@ const EventManagement = () => {
               </button>
               <button
                 onClick={() => handleDelete(event._id)}
+                disabled={deletingEventId === event._id}
                 style={{
-                  background: '#dc3545',
+                  background: deletingEventId === event._id ? '#6c757d' : '#dc3545',
                   color: 'white',
                   border: 'none',
                   padding: '8px 16px',
                   borderRadius: '5px',
-                  cursor: 'pointer',
+                  cursor: deletingEventId === event._id ? 'not-allowed' : 'pointer',
                   fontSize: '12px',
-                  flex: 1
+                  flex: 1,
+                  opacity: deletingEventId === event._id ? 0.7 : 1
                 }}
               >
-                <i className="fa fa-trash" style={{ marginRight: '5px' }}></i>
-                Delete
+                {deletingEventId === event._id ? (
+                  <>
+                    <i className="fa fa-spinner fa-spin" style={{ marginRight: '5px' }}></i>
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <i className="fa fa-trash" style={{ marginRight: '5px' }}></i>
+                    Delete
+                  </>
+                )}
               </button>
             </div>
 
@@ -365,6 +462,30 @@ const EventManagement = () => {
             maxHeight: '90vh',
             overflowY: 'auto'
           }}>
+            {/* Loading Overlay */}
+            {submitting && (
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(255,255,255,0.8)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 10,
+                borderRadius: '10px'
+              }}>
+                <div style={{ textAlign: 'center' }}>
+                  <i className="fa fa-spinner fa-spin" style={{ fontSize: '24px', color: '#ffc107', marginBottom: '10px' }}></i>
+                  <p style={{ margin: 0, color: '#666' }}>
+                    {editingEvent ? 'Updating event...' : 'Creating event...'}
+                  </p>
+                </div>
+              </div>
+            )}
+            
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <h3 style={{ margin: 0, color: '#333' }}>
                 {editingEvent ? 'Edit Event' : 'Create New Event'}
@@ -382,7 +503,7 @@ const EventManagement = () => {
                     capacity: "",
                     price: "",
                     category: "",
-                    img: "",
+                    imageUrl: "",
                     status: "upcoming"
                   });
                 }}
@@ -566,15 +687,15 @@ const EventManagement = () => {
                   >
                     <option value="upcoming">Upcoming</option>
                     <option value="ongoing">Ongoing</option>
-                    <option value="completed">Completed</option>
+                    <option value="complete">Complete</option>
                     <option value="cancelled">Cancelled</option>
                   </select>
                 </div>
 
                 <div style={{ gridColumn: '1 / -1' }}>
                   <ImageUpload
-                    currentImage={formData.img}
-                    onImageSelect={(imageUrl) => setFormData(prev => ({ ...prev, img: imageUrl }))}
+                    currentImage={formData.imageUrl}
+                    onImageSelect={(imageUrl) => setFormData(prev => ({ ...prev, imageUrl: imageUrl }))}
                     placeholder="Upload event cover image"
                   />
                 </div>
@@ -605,20 +726,30 @@ const EventManagement = () => {
               <div style={{ display: 'flex', gap: '15px', marginTop: '30px' }}>
                 <button
                   type="submit"
+                  disabled={submitting}
                   style={{
-                    background: '#ffc107',
+                    background: submitting ? '#6c757d' : '#ffc107',
                     color: 'white',
                     border: 'none',
                     padding: '12px 24px',
                     borderRadius: '5px',
-                    cursor: 'pointer',
-                    fontSize: '14px'
+                    cursor: submitting ? 'not-allowed' : 'pointer',
+                    fontSize: '14px',
+                    opacity: submitting ? 0.7 : 1
                   }}
                 >
-                  {editingEvent ? 'Update Event' : 'Create Event'}
+                  {submitting ? (
+                    <>
+                      <i className="fa fa-spinner fa-spin" style={{ marginRight: '8px' }}></i>
+                      {editingEvent ? 'Updating...' : 'Creating...'}
+                    </>
+                  ) : (
+                    editingEvent ? 'Update Event' : 'Create Event'
+                  )}
                 </button>
                 <button
                   type="button"
+                  disabled={submitting}
                   onClick={() => {
                     setShowAddModal(false);
                     setEditingEvent(null);
@@ -641,8 +772,9 @@ const EventManagement = () => {
                     border: 'none',
                     padding: '12px 24px',
                     borderRadius: '5px',
-                    cursor: 'pointer',
-                    fontSize: '14px'
+                    cursor: submitting ? 'not-allowed' : 'pointer',
+                    fontSize: '14px',
+                    opacity: submitting ? 0.6 : 1
                   }}
                 >
                   Cancel

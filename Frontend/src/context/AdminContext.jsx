@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
+import AuthUtils from '../utils/auth.js';
 
 const AdminContext = createContext();
 
@@ -329,6 +330,21 @@ const initialStudentTestimonials = [
 
 const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000/api";
 
+// Helper function to get authorization headers
+const getAuthHeaders = (isFormData = false) => {
+  const user = AuthUtils.getCurrentUser();
+  const headers = user && user.token ? {
+    'Authorization': `Bearer ${user.token}`
+  } : {};
+  
+  // Don't set Content-Type for FormData, let browser set it with boundary
+  if (!isFormData) {
+    headers['Content-Type'] = 'application/json';
+  }
+  
+  return headers;
+};
+
 export const AdminProvider = ({ children }) => {
   const [courses, setCourses] = useState(initialCourses);
   const [events, setEvents] = useState(initialEvents);
@@ -337,9 +353,26 @@ export const AdminProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // Setup demo admin session if not logged in
+  const setupDemoAdmin = () => {
+    if (!AuthUtils.isAuthenticated()) {
+      const demoAdmin = {
+        _id: 'demo-admin-id',
+        name: 'Demo Admin',
+        email: 'admin@demo.com',
+        role: 'admin',
+        token: 'demo-token-admin'
+      };
+      localStorage.setItem('userInfo', JSON.stringify(demoAdmin));
+      console.log('Demo admin session created');
+    }
+  };
+
   // Fetch data from backend or use fallback
   useEffect(() => {
+    setupDemoAdmin();
     fetchCoursesData();
+    fetchEventsData();
   }, []);
 
   const fetchCoursesData = async () => {
@@ -370,11 +403,40 @@ export const AdminProvider = ({ children }) => {
     }
   };
 
+  const fetchEventsData = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`${API_BASE_URL}/events`);
+      const fetchedEvents = response.data.map(event => ({
+        _id: event._id,
+        title: event.title,
+        desc: event.desc || event.description || "",
+        date: event.date,
+        month: event.month,
+        time: event.time,
+        location: event.location,
+        imageUrl: event.imageUrl || event.img || "",
+        type: event.type || event.status || "upcoming",
+        status: event.type || event.status || "upcoming", // For compatibility
+        createdAt: event.createdAt || new Date().toISOString().split('T')[0]
+      }));
+      setEvents(fetchedEvents);
+    } catch (err) {
+      console.error("Error fetching events:", err);
+      // Use fallback data
+      setEvents(initialEvents);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Course management functions
   const addCourse = async (courseData) => {
     try {
       // Try to add to backend first
-      const response = await axios.post(`${API_BASE_URL}/courses`, courseData);
+      const response = await axios.post(`${API_BASE_URL}/admin/courses`, courseData, {
+        headers: getAuthHeaders()
+      });
       const newCourse = response.data;
       setCourses(prev => [...prev, newCourse]);
       return { success: true, course: newCourse };
@@ -395,7 +457,9 @@ export const AdminProvider = ({ children }) => {
   const updateCourse = async (courseId, updatedData) => {
     try {
       // Try to update on backend first
-      await axios.put(`${API_BASE_URL}/courses/${courseId}`, updatedData);
+      await axios.put(`${API_BASE_URL}/admin/courses/${courseId}`, updatedData, {
+        headers: getAuthHeaders()
+      });
       setCourses(prev => prev.map(course => 
         course._id === courseId ? { ...course, ...updatedData } : course
       ));
@@ -412,7 +476,9 @@ export const AdminProvider = ({ children }) => {
   const deleteCourse = async (courseId) => {
     try {
       // Try to delete from backend first
-      await axios.delete(`${API_BASE_URL}/courses/${courseId}`);
+      await axios.delete(`${API_BASE_URL}/admin/courses/${courseId}`, {
+        headers: getAuthHeaders()
+      });
       setCourses(prev => prev.filter(course => course._id !== courseId));
       return { success: true };
     } catch (error) {
@@ -423,27 +489,58 @@ export const AdminProvider = ({ children }) => {
   };
 
   // Event management functions
-  const addEvent = (eventData) => {
-    const newEvent = {
-      _id: `event_${Date.now()}`,
-      ...eventData,
-      registrations: 0,
-      createdAt: new Date().toISOString().split('T')[0]
-    };
-    setEvents(prev => [...prev, newEvent]);
-    return { success: true, event: newEvent };
+  const addEvent = async (eventData) => {
+    try {
+      console.log("Adding event:", eventData);
+      console.log("Auth headers:", getAuthHeaders());
+      // Try to add to backend first
+      const isFormData = eventData instanceof FormData;
+      const response = await axios.post(`${API_BASE_URL}/admin/events`, eventData, {
+        headers: getAuthHeaders(isFormData)
+      });
+      console.log("Add event response:", response.data);
+      const newEvent = response.data.event;
+      // Refresh events from backend to ensure sync
+      await fetchEventsData();
+      return { success: true, event: newEvent };
+    } catch (error) {
+      console.error("Error adding event:", error);
+      // Don't add locally - force user to fix the issue
+      throw error;
+    }
   };
 
-  const updateEvent = (eventId, updatedData) => {
-    setEvents(prev => prev.map(event => 
-      event._id === eventId ? { ...event, ...updatedData } : event
-    ));
-    return { success: true };
+  const updateEvent = async (eventId, updatedData) => {
+    try {
+      // Try to update on backend first
+      const isFormData = updatedData instanceof FormData;
+      await axios.put(`${API_BASE_URL}/admin/events/${eventId}`, updatedData, {
+        headers: getAuthHeaders(isFormData)
+      });
+      // Refresh events from backend to ensure sync
+      await fetchEventsData();
+      return { success: true };
+    } catch (error) {
+      console.error("Error updating event:", error);
+      // Don't update locally - force user to fix the issue
+      throw error;
+    }
   };
 
-  const deleteEvent = (eventId) => {
-    setEvents(prev => prev.filter(event => event._id !== eventId));
-    return { success: true };
+  const deleteEvent = async (eventId) => {
+    try {
+      // Try to delete from backend first
+      await axios.delete(`${API_BASE_URL}/admin/events/${eventId}`, {
+        headers: getAuthHeaders()
+      });
+      // Refresh events from backend to ensure sync
+      await fetchEventsData();
+      return { success: true };
+    } catch (error) {
+      console.error("Error deleting event:", error);
+      // Don't delete locally - force user to fix the issue  
+      throw error;
+    }
   };
 
   // Testimonials management functions

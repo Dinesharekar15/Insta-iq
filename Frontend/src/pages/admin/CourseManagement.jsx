@@ -27,7 +27,7 @@ const CourseManagement = () => {
     description: "",
     price: "",
     duration: "",
-    category: "",
+    category: "aptitude",
     level: "Beginner",
     instructor: "InstaIQ Team",
     imageUrl: "",
@@ -304,7 +304,7 @@ const CourseManagement = () => {
       description: "",
       price: "",
       duration: "",
-      category: "",
+      category: "aptitude",
       level: "Beginner",
       instructor: "InstaIQ Team",
       imageUrl: "",
@@ -545,13 +545,8 @@ const CourseManagement = () => {
               }}
             >
               <option value="all">All Categories</option>
-              <option value="Web Development">Web Development</option>
-              <option value="Mobile Development">Mobile Development</option>
-              <option value="Data Science">Data Science</option>
-              <option value="Design">Design</option>
-              <option value="Marketing">Marketing</option>
-              <option value="Business">Business</option>
-              <option value="Programming">Programming</option>
+              <option value="aptitude">Aptitude</option>
+              <option value="technical">Technical</option>
             </select>
           </div>
           
@@ -983,12 +978,10 @@ const CourseManagement = () => {
                     <label style={{ display: 'block', marginBottom: '8px', color: '#666', fontSize: '14px' }}>
                       Category *
                     </label>
-                    <input
-                      type="text"
+                    <select
                       name="category"
                       value={formData.category}
                       onChange={handleInputChange}
-                      placeholder="e.g., Web Development"
                       required
                       style={{
                         width: '100%',
@@ -997,7 +990,11 @@ const CourseManagement = () => {
                         borderRadius: '5px',
                         fontSize: '14px'
                       }}
-                    />
+                    >
+                      <option value="">Select Category</option>
+                      <option value="aptitude">Aptitude</option>
+                      <option value="technical">Technical</option>
+                    </select>
                     {formErrors.category && (
                       <div style={{ color: '#dc3545', fontSize: '12px', marginTop: '5px' }}>
                         {formErrors.category}

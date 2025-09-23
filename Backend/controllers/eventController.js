@@ -10,13 +10,13 @@ const createEvent = asyncHandler(async (req, res) => {
   const { imageUrl, type, date, month, title, time, location, desc } = req.body;
     console.log(imageUrl, type, date, month, title, time, location, desc); // Debugging line to check incoming data
   // Basic validation
-  if (!imageUrl || !type || !date || !month || !title || !time || !location || !desc) {
+  if (!type || !date || !month || !title || !time || !location || !desc) {
     res.status(400);
-    throw new Error('Please fill all event fields and provide an image.');
+    throw new Error('Please fill all required event fields.');
   }
 
   const event = await Event.create({
-    imageUrl, // Use the image URL provided by the upload middleware
+    imageUrl: imageUrl || 'https://placehold.co/600x400/000000/FFFFFF?text=Event+Image', // Use provided URL or default
     type,
     date,
     month,
@@ -69,13 +69,13 @@ const getEventById = asyncHandler(async (req, res) => {
 // @route   PUT /api/admin/events/:id
 // @access  Private/Admin
 const updateEvent = asyncHandler(async (req, res) => {
-  const { img, type, date, month, title, time, location, desc } = req.body;
+  const { imageUrl, type, date, month, title, time, location, desc } = req.body;
   const eventId = req.params.id;
 
   const event = await Event.findById(eventId);
 
   if (event) {
-    event.img = img || event.img; // Update image if new one is provided by uploadMiddleware
+    event.imageUrl = imageUrl || event.imageUrl; // Update image if new one is provided
     event.type = type || event.type;
     event.date = date || event.date;
     event.month = month || event.month;
