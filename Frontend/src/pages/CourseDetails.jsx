@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { useAppContext } from "../context/AppContext";
 import { useAdmin } from "../context/AdminContext";
+import { useCart } from "../context/CartContext";
 
  // Fallback static data for when admin courses are not available
  const fallbackCourses = [
@@ -183,8 +184,11 @@ const CourseDetails = () => {
   const navigate = useNavigate();
   const { state, dispatch } = useAppContext();
   const { courses: adminCourses } = useAdmin();
+  const { addToCart, isInCart } = useCart();
   const [added, setAdded] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [userOrders, setUserOrders] = useState([]);
+  const [checkingPurchase, setCheckingPurchase] = useState(false);
   
   // Scroll to top when component mounts and set loading
   useEffect(() => {
@@ -195,6 +199,37 @@ const CourseDetails = () => {
       setLoading(false);
     }, 100);
     return () => clearTimeout(timer);
+  }, [id]);
+
+  // Check if user has already purchased this course
+  useEffect(() => {
+    const checkUserPurchases = async () => {
+      const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+      const token = userInfo.token;
+      if (!token) return;
+
+      try {
+        setCheckingPurchase(true);
+        const response = await fetch('http://localhost:5000/api/orders/my-orders', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setUserOrders(data.orders || []);
+        }
+      } catch (error) {
+        console.error('Error fetching user orders:', error);
+      } finally {
+        setCheckingPurchase(false);
+      }
+    };
+
+    checkUserPurchases();
   }, [id]);
 
   // Find course from admin courses or fallback to static data
@@ -263,11 +298,25 @@ const CourseDetails = () => {
     );
   }
 
+  // Check if course is already purchased
+  const isAlreadyPurchased = () => {
+    return userOrders.some(order => 
+      order.course.title === course.title && 
+      (order.orderStatus === 'completed' || order.orderStatus === 'processing')
+    );
+  };
+
   const handleBuyNow = () => {
-    // Add to cart and navigate to checkout
-    const courseToAdd = { ...course, cartId: id };
-    console.log("Adding course to cart:", courseToAdd);
-    dispatch({ type: "ADD_TO_CART", payload: courseToAdd });
+    // Check if already purchased (only if user is logged in)
+    const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+    const token = userInfo.token;
+    if (token && isAlreadyPurchased()) {
+      alert('You have already purchased this course!');
+      return;
+    }
+
+    // Add to cart using CartContext
+    addToCart(course);
     
     // Show added message briefly
     setAdded(true);
@@ -476,31 +525,87 @@ const CourseDetails = () => {
                     </ul>
                   </div>
                   <div className="widget">
-                    <button onClick={handleBuyNow} className="btn btn-block" style={{
-                      background: '#4c1864',
-                      color: '#ffffff',
-                      border: 'none',
-                      padding: '16px 24px',
-                      fontSize: '18px',
-                      fontWeight: '700',
-                      borderRadius: '12px',
-                      width: '100%',
-                      boxShadow: '0 4px 15px rgba(76, 24, 100, 0.3)',
-                      transition: 'all 0.3s ease',
-                      cursor: 'pointer'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.target.style.background = '#3f189a';
-                      e.target.style.transform = 'translateY(-2px)';
-                      e.target.style.boxShadow = '0 6px 20px rgba(76, 24, 100, 0.4)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.target.style.background = '#4c1864';
-                      e.target.style.transform = 'translateY(0)';
-                      e.target.style.boxShadow = '0 4px 15px rgba(76, 24, 100, 0.3)';
-                    }}>
-                      Buy Now for {course.price === 0 ? "Free" : `₹${course.price}`}
-                    </button>
+                    {checkingPurchase ? (
+                      <button disabled className="btn btn-block" style={{
+                        background: '#cccccc',
+                        color: '#666666',
+                        border: 'none',
+                        padding: '16px 24px',
+                        fontSize: '18px',
+                        fontWeight: '700',
+                        borderRadius: '12px',
+                        width: '100%',
+                        cursor: 'not-allowed'
+                      }}>
+                        Checking Purchase Status...
+                      </button>
+                    ) : isAlreadyPurchased() ? (
+                      <button disabled className="btn btn-block" style={{
+                        background: '#28a745',
+                        color: '#ffffff',
+                        border: 'none',
+                        padding: '16px 24px',
+                        fontSize: '18px',
+                        fontWeight: '700',
+                        borderRadius: '12px',
+                        width: '100%',
+                        cursor: 'not-allowed'
+                      }}>
+                        Already Purchased ✓
+                      </button>
+                    ) : isInCart(course._id) ? (
+                      <button onClick={() => navigate('/checkout')} className="btn btn-block" style={{
+                        background: '#f39c12',
+                        color: '#ffffff',
+                        border: 'none',
+                        padding: '16px 24px',
+                        fontSize: '18px',
+                        fontWeight: '700',
+                        borderRadius: '12px',
+                        width: '100%',
+                        boxShadow: '0 4px 15px rgba(243, 156, 18, 0.3)',
+                        transition: 'all 0.3s ease',
+                        cursor: 'pointer'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.style.background = '#e67e22';
+                        e.target.style.transform = 'translateY(-2px)';
+                        e.target.style.boxShadow = '0 6px 20px rgba(243, 156, 18, 0.4)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.background = '#f39c12';
+                        e.target.style.transform = 'translateY(0)';
+                        e.target.style.boxShadow = '0 4px 15px rgba(243, 156, 18, 0.3)';
+                      }}>
+                        In Cart - Go to Checkout
+                      </button>
+                    ) : (
+                      <button onClick={handleBuyNow} className="btn btn-block" style={{
+                        background: '#4c1864',
+                        color: '#ffffff',
+                        border: 'none',
+                        padding: '16px 24px',
+                        fontSize: '18px',
+                        fontWeight: '700',
+                        borderRadius: '12px',
+                        width: '100%',
+                        boxShadow: '0 4px 15px rgba(76, 24, 100, 0.3)',
+                        transition: 'all 0.3s ease',
+                        cursor: 'pointer'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.style.background = '#3f189a';
+                        e.target.style.transform = 'translateY(-2px)';
+                        e.target.style.boxShadow = '0 6px 20px rgba(76, 24, 100, 0.4)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.background = '#4c1864';
+                        e.target.style.transform = 'translateY(0)';
+                        e.target.style.boxShadow = '0 4px 15px rgba(76, 24, 100, 0.3)';
+                      }}>
+                        Buy Now for {course.price === 0 ? "Free" : `₹${course.price}`}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

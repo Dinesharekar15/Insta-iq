@@ -2,6 +2,7 @@ import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import "./styles/custom.css"; // Import custom CSS overrides
 import { AdminProvider } from "./context/AdminContext";
+import { CartProvider } from "./context/CartContext";
 import ScrollToTop from "./components/ScrollToTop";
 // Import page components
 import Home from "./pages/Home";
@@ -37,9 +38,10 @@ import { Outlet } from "react-router-dom";
 function App() {
   return (
     <AdminProvider>
-      <Router>
-        <ScrollToTop />
-        <Routes>
+      <CartProvider>
+        <Router>
+          <ScrollToTop />
+          <Routes>
         {/* Admin Panel route without Layout wrapper */}
         <Route path="/admin/*" element={<AdminPanel />} />
         
@@ -75,6 +77,7 @@ function App() {
         </Route>
         </Routes>
       </Router>
+      </CartProvider>
     </AdminProvider>
   );
 
