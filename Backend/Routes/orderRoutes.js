@@ -5,6 +5,7 @@ import {
   getUserOrders,
   getOrderById,
   updateOrderStatus,
+  completePayment,
   deleteOrder,
   getOrderStats
 } from '../controllers/orderController.js';
@@ -23,6 +24,9 @@ router.route('/')
 
 router.route('/my-orders')
   .get(getUserOrders); // Get current user's orders
+
+router.route('/complete-payment/:id')
+  .put(completePayment); // Complete payment and update order status
 
 router.route('/:id')
   .get(getOrderById); // Get single order by ID (user must own it or be admin)

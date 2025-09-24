@@ -177,6 +177,47 @@ const getOrderById = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Complete payment and update order status
+// @route   PUT /api/orders/complete-payment/:id
+// @access  Private (User must own the order)
+const completePayment = asyncHandler(async (req, res) => {
+  const { status } = req.body;
+
+  // Only allow updating to delivered status for payment completion
+  if (status !== 'delivered') {
+    res.status(400);
+    throw new Error('Invalid status for payment completion');
+  }
+
+  const order = await Order.findById(req.params.id);
+
+  if (!order) {
+    res.status(404);
+    throw new Error('Order not found');
+  }
+
+  // Check if user owns this order
+  if (order.user.email !== req.user.email) {
+    res.status(403);
+    throw new Error('Not authorized to update this order');
+  }
+
+  // Only allow updating pending orders
+  if (order.orderStatus !== 'pending') {
+    res.status(400);
+    throw new Error('Order status can only be updated for pending orders');
+  }
+
+  // Update status to delivered
+  order.orderStatus = 'delivered';
+  await order.save();
+
+  res.json({
+    message: 'Payment completed and order status updated',
+    order
+  });
+});
+
 // @desc    Update order status (Admin only)
 // @route   PUT /api/admin/orders/:id/status
 // @access  Private/Admin
@@ -325,6 +366,7 @@ export {
   getUserOrders,
   getOrderById,
   updateOrderStatus,
+  completePayment,
   deleteOrder,
   getOrderStats
 };

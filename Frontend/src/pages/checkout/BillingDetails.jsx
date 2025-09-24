@@ -55,7 +55,7 @@ const BillingDetails = () => {
       {/* Course Summary */}
       {selectedCourse && (
         <div style={{ marginBottom: "30px" }}>
-          <h3 style={{ color: "#333", marginBottom: "15px" }}>Course Summary</h3>
+          <h3 style={{ color: "#fff", marginBottom: "15px" }}>Course Summary</h3>
           <div style={{ 
             padding: "20px", 
             backgroundColor: "#f8f9fa", 
@@ -88,7 +88,7 @@ const BillingDetails = () => {
         </div>
       )}
 
-      <h2 style={{ marginBottom: "25px" }}>Billing Information</h2>
+      <h2 style={{ marginBottom: "25px", color: "#fff" }}>Billing Information</h2>
       
       {/* Debug Info - Remove after testing */}
       <div style={{ 
@@ -97,7 +97,8 @@ const BillingDetails = () => {
         borderRadius: "4px", 
         padding: "10px", 
         marginBottom: "20px", 
-        fontSize: "12px" 
+        fontSize: "12px",
+        color: "#333"
       }}>
         <strong>Debug Info:</strong><br/>
         Name: "{userInfo.name}" | Email: "{userInfo.email}" | Phone: "{userInfo.phone}"
@@ -192,13 +193,13 @@ const BillingDetails = () => {
 
       {/* Info Note */}
       <p style={{
-        color: "#6c757d",
+        color: "#ccc",
         fontSize: "14px",
         fontStyle: "italic",
         textAlign: "center",
         marginBottom: "30px",
         padding: "10px",
-        background: "#e9ecef",
+        background: "#333",
         borderRadius: "4px"
       }}>
         This information is from your profile. If you need to update it, please visit your profile page.

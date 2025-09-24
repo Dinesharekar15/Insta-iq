@@ -184,7 +184,7 @@ const CourseDetails = () => {
   const navigate = useNavigate();
   const { state, dispatch } = useAppContext();
   const { courses: adminCourses } = useAdmin();
-  const { addToCart, isInCart } = useCart();
+  const { addToCart, isInCart, isPurchased, loadPurchasedCourses } = useCart();
   const [added, setAdded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [userOrders, setUserOrders] = useState([]);
@@ -307,24 +307,30 @@ const CourseDetails = () => {
   };
 
   const handleBuyNow = () => {
-    // Check if already purchased (only if user is logged in)
-    const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
-    const token = userInfo.token;
-    if (token && isAlreadyPurchased()) {
-      alert('You have already purchased this course!');
+    // Check if already purchased using the cart context
+    if (isPurchased(course._id)) {
+      alert('You have already purchased this course! Check your profile for access.');
       return;
     }
 
-    // Add to cart using CartContext
-    addToCart(course);
-    
-    // Show added message briefly
-    setAdded(true);
-    
-    // Navigate to checkout page after a short delay
-    setTimeout(() => {
+    // Check if already in cart
+    if (isInCart(course._id)) {
+      alert('This course is already in your cart!');
       navigate('/checkout');
-    }, 500);
+      return;
+    }
+
+    // Add to cart using CartContext (this will also check for duplicates)
+    const success = addToCart(course);
+    if (success) {
+      // Show added message briefly
+      setAdded(true);
+      
+      // Navigate to checkout page after a short delay
+      setTimeout(() => {
+        navigate('/checkout');
+      }, 500);
+    }
   };
 
   return (

@@ -25,7 +25,7 @@ const Checkout = () => {
       
       {cartItems.length > 0 ? (
         <div>
-          <p style={{ marginBottom: "20px", color: "#666" }}>
+          <p style={{ marginBottom: "20px", color: "#fff" }}>
             Choose which course you want to purchase:
           </p>
           
@@ -128,8 +128,8 @@ const Checkout = () => {
         </div>
       ) : (
         <div style={{ textAlign: "center", padding: "40px" }}>
-          <h3 style={{ color: "#666" }}>Your cart is empty</h3>
-          <p style={{ color: "#999", marginBottom: "20px" }}>Add some courses to get started!</p>
+          <h3 style={{ color: "#fff" }}>Your cart is empty</h3>
+          <p style={{ color: "#ccc", marginBottom: "20px" }}>Add some courses to get started!</p>
           <a 
             href="/courses" 
             style={{
@@ -217,13 +217,13 @@ const Checkout = () => {
         
         {/* Header */}
         <div style={{ marginBottom: "30px", textAlign: "center" }}>
-          <h1 style={{ color: "#333", marginBottom: "10px" }}>
+          <h1 style={{ color: "#fff", marginBottom: "10px" }}>
             {currentStep === 'cart' ? 'Step 1 - Order Details' : 
              currentStep === 'billing' ? 'Step 2 - Billing Details' :
              currentStep === 'payment' ? 'Step 3 - Payment Details' : 'Order Complete'}
           </h1>
           {selectedCourse && currentStep !== 'cart' && (
-            <p style={{ color: "#666", fontSize: "16px" }}>
+            <p style={{ color: "#ccc", fontSize: "16px" }}>
               Purchasing: <strong>{selectedCourse.title}</strong>
             </p>
           )}
@@ -243,7 +243,7 @@ const Checkout = () => {
                     alignItems: "center",
                     justifyContent: "center",
                     backgroundColor: step.completed ? "#28a745" : step.active ? "#4c1864" : "#f0f0f0",
-                    color: (step.active || step.completed) ? "white" : "#666",
+                    color: (step.active || step.completed) ? "white" : "#333",
                     fontWeight: "bold",
                     fontSize: "14px"
                   }}>
@@ -252,7 +252,7 @@ const Checkout = () => {
                   <div style={{ marginLeft: "10px", marginRight: "20px" }}>
                     <div style={{
                       fontWeight: "bold",
-                      color: step.completed ? "#28a745" : step.active ? "#4c1864" : "#666",
+                      color: step.completed ? "#28a745" : step.active ? "#4c1864" : "#fff",
                       fontSize: "14px"
                     }}>
                       {step.title}

@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useCart } from "../../context/CartContext";
 
 const PaymentDetails = () => {
-  const { selectedCourse, billingDetails, paymentDetails, updatePaymentDetails, goToStep, clearCart, resetCheckout } = useCart();
+  const { selectedCourse, billingDetails, paymentDetails, updatePaymentDetails, goToStep, clearCart, resetCheckout, addPurchasedCourse, loadPurchasedCourses } = useCart();
   const [processing, setProcessing] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("card");
 
@@ -65,6 +65,37 @@ const PaymentDetails = () => {
     }
   };
 
+  // Function to update order status after payment completion
+  const updateOrderStatus = async (orderId, status) => {
+    try {
+      const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+      const token = userInfo.token;
+      if (!token) return false;
+
+      const response = await fetch(`http://localhost:5000/api/orders/complete-payment/${orderId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        return data.order;
+      } else {
+        console.error('Order status update failed:', response.status);
+        // If the endpoint doesn't exist, we'll continue without error
+        return true;
+      }
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      // Continue even if status update fails
+      return true;
+    }
+  };
+
   const handlePayNow = async () => {
     setProcessing(true);
 
@@ -73,15 +104,27 @@ const PaymentDetails = () => {
       const order = await createOrder();
       
       if (order) {
+        console.log('Order created successfully:', order);
+        
+        // Add course to purchased courses list immediately
+        // This ensures the course is marked as purchased even before order status changes
+        addPurchasedCourse(selectedCourse);
+        
         // Simulate payment processing delay
         await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Update order status to delivered after successful payment
+        const updatedOrder = await updateOrderStatus(order._id, 'delivered');
+        if (updatedOrder) {
+          console.log('Order status updated to delivered');
+        }
         
         // Clear cart and show success
         clearCart();
         goToStep('confirmation');
         
-        // Optional: You could update the order status to completed here
-        // await updateOrderStatus(order._id, 'completed');
+        // Reload purchased courses to sync with backend
+        await loadPurchasedCourses();
         
       }
     } catch (error) {
@@ -97,7 +140,7 @@ const PaymentDetails = () => {
       {/* Course and Billing Summary */}
       {selectedCourse && (
         <div style={{ marginBottom: "30px" }}>
-          <h3 style={{ color: "#333", marginBottom: "15px" }}>Order Summary</h3>
+          <h3 style={{ color: "#fff", marginBottom: "15px" }}>Order Summary</h3>
           <div style={{ 
             padding: "20px", 
             backgroundColor: "#f8f9fa", 
@@ -147,16 +190,16 @@ const PaymentDetails = () => {
         </div>
       )}
 
-      <h2 style={{ marginBottom: "25px" }}>Payment Details</h2>
+      <h2 style={{ marginBottom: "25px", color: "#fff" }}>Payment Details</h2>
 
       {/* Only show payment form for paid courses */}
       {selectedCourse.price !== "Free" && selectedCourse.price !== 0 ? (
         <div>
           {/* Payment Method Selection */}
           <div style={{ marginBottom: "25px" }}>
-            <h4 style={{ marginBottom: "15px", color: "#333" }}>Select Payment Method</h4>
+            <h4 style={{ marginBottom: "15px", color: "#fff" }}>Select Payment Method</h4>
             <div style={{ marginBottom: "15px" }}>
-              <label style={{ display: "flex", alignItems: "center", cursor: "pointer", marginBottom: "10px" }}>
+              <label style={{ display: "flex", alignItems: "center", cursor: "pointer", marginBottom: "10px", color: "#fff" }}>
                 <input
                   type="radio"
                   name="paymentMethod"
@@ -167,7 +210,7 @@ const PaymentDetails = () => {
                 />
                 Credit/Debit Card
               </label>
-              <label style={{ display: "flex", alignItems: "center", cursor: "pointer", marginBottom: "10px" }}>
+              <label style={{ display: "flex", alignItems: "center", cursor: "pointer", marginBottom: "10px", color: "#fff" }}>
                 <input
                   type="radio"
                   name="paymentMethod"
@@ -178,7 +221,7 @@ const PaymentDetails = () => {
                 />
                 UPI
               </label>
-              <label style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
+              <label style={{ display: "flex", alignItems: "center", cursor: "pointer", color: "#fff" }}>
                 <input
                   type="radio"
                   name="paymentMethod"

@@ -1,11 +1,41 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
-const CartContext = createContext();
+// Create context with default value to prevent null context issues
+const CartContext = createContext({
+  // Provide default values to prevent crashes
+  cartItems: [],
+  selectedCourse: null,
+  currentStep: 'cart',
+  billingDetails: { name: '', email: '', phone: '' },
+  paymentDetails: { paymentMethod: 'credit-card' },
+  purchasedCourses: [],
+  addToCart: () => console.warn('addToCart called outside provider'),
+  removeFromCart: () => console.warn('removeFromCart called outside provider'),
+  clearCart: () => console.warn('clearCart called outside provider'),
+  goToStep: () => console.warn('goToStep called outside provider'),
+  isInCart: () => false,
+  isPurchased: () => false,
+  addPurchasedCourse: () => console.warn('addPurchasedCourse called outside provider'),
+  loadPurchasedCourses: () => console.warn('loadPurchasedCourses called outside provider'),
+  updateBillingDetails: () => console.warn('updateBillingDetails called outside provider'),
+  updatePaymentDetails: () => console.warn('updatePaymentDetails called outside provider'),
+});
 
 export const CartProvider = ({ children }) => {
+  console.log('CartProvider rendering...');
   const [cartItems, setCartItems] = useState([]);
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [currentStep, setCurrentStep] = useState('cart');
+  const [purchasedCourses, setPurchasedCourses] = useState(() => {
+    // Try to load from localStorage first
+    try {
+      const saved = localStorage.getItem('purchasedCourses');
+      return saved ? JSON.parse(saved) : [];
+    } catch (error) {
+      console.error('Error loading purchased courses from localStorage:', error);
+      return [];
+    }
+  });
   const [billingDetails, setBillingDetails] = useState({
     name: '',
     email: '',
@@ -44,15 +74,28 @@ export const CartProvider = ({ children }) => {
     localStorage.setItem('cart', JSON.stringify(cartItems));
   }, [cartItems]);
 
+  // Save purchased courses to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('purchasedCourses', JSON.stringify(purchasedCourses));
+  }, [purchasedCourses]);
+
   // Add item to cart
   const addToCart = (course) => {
+    // Check if course is already purchased
+    if (isPurchased(course._id)) {
+      alert('You have already purchased this course!');
+      return false;
+    }
+
     setCartItems(prevItems => {
       const existingItem = prevItems.find(item => item._id === course._id);
       if (existingItem) {
+        alert('This course is already in your cart!');
         return prevItems; // Don't add duplicate
       }
       return [...prevItems, { ...course, quantity: 1 }];
     });
+    return true;
   };
 
   // Remove item from cart
@@ -96,6 +139,77 @@ export const CartProvider = ({ children }) => {
   const isInCart = (courseId) => {
     return cartItems.some(item => item._id === courseId);
   };
+
+  // Check if course is already purchased
+  const isPurchased = useCallback((courseId) => {
+    return purchasedCourses.some(course => course._id === courseId || course.courseId === courseId);
+  }, [purchasedCourses]);
+
+  // Add purchased course
+  const addPurchasedCourse = useCallback((course) => {
+    setPurchasedCourses(prev => {
+      const exists = prev.some(c => c._id === course._id || c.courseId === course._id);
+      if (exists) return prev;
+      const newCourse = { 
+        _id: course._id,
+        courseId: course._id, 
+        title: course.title,
+        imageUrl: course.imageUrl || course.img,
+        img: course.imageUrl || course.img,
+        price: course.price,
+        purchaseDate: new Date().toISOString(),
+        orderStatus: 'pending'
+      };
+      const newList = [...prev, newCourse];
+      return newList;
+    });
+  }, []);
+
+  // Load purchased courses from user orders
+  const loadPurchasedCourses = useCallback(async () => {
+    try {
+      const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+      const token = userInfo.token;
+      if (!token) {
+        return;
+      }
+
+      const response = await fetch('http://localhost:5000/api/orders/my-orders', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const purchased = data.orders
+          .filter(order => order.orderStatus === 'completed' || order.orderStatus === 'processing' || order.orderStatus === 'pending' || order.orderStatus === 'delivered')
+          .map(order => ({
+            _id: order.course._id || order.courseId,
+            courseId: order.course._id || order.courseId,
+            title: order.course.title,
+            imageUrl: order.course.image || order.course.imageUrl,
+            img: order.course.image || order.course.imageUrl, // Fallback for different naming conventions
+            price: order.course.price,
+            purchaseDate: order.createdAt,
+            orderStatus: order.orderStatus
+          }));
+        
+        setPurchasedCourses(purchased);
+      } else {
+        console.error('Failed to load purchased courses:', response.status);
+      }
+    } catch (error) {
+      console.error('Error loading purchased courses:', error);
+    }
+  }, []);
+
+  // Load purchased courses when provider mounts or user logs in
+  useEffect(() => {
+    loadPurchasedCourses();
+  }, [loadPurchasedCourses]);
 
   // Select course for individual purchase
   const selectCourse = useCallback((course) => {
@@ -204,6 +318,7 @@ export const CartProvider = ({ children }) => {
     orderSummary,
     isLoading,
     error,
+    purchasedCourses,
 
     // Cart actions
     addToCart,
@@ -211,10 +326,15 @@ export const CartProvider = ({ children }) => {
     clearCart,
     updateQuantity,
     isInCart,
+    isPurchased,
 
     // Course selection
     selectCourse,
     clearSelectedCourse,
+
+    // Purchase management
+    addPurchasedCourse,
+    loadPurchasedCourses,
 
     // Calculations
     getTotalPrice,
@@ -238,6 +358,8 @@ export const CartProvider = ({ children }) => {
     resetCheckout
   };
 
+  console.log('CartProvider providing value:', Object.keys(value));
+
   return (
     <CartContext.Provider value={value}>
       {children}
@@ -247,7 +369,19 @@ export const CartProvider = ({ children }) => {
 
 export const useCart = () => {
   const context = useContext(CartContext);
-  if (!context) {
+  
+  // Even with default context, check if we're in a provider
+  if (!context || context.addToCart.toString().includes('called outside provider')) {
+    console.error('useCart must be used within a CartProvider');
+    console.error('Current context:', context);
+    console.error('Component using hook should be wrapped with CartProvider');
+    
+    // During development, provide fallback instead of crashing
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Using fallback context for development');
+      return context; // Return the default context with warning functions
+    }
+    
     throw new Error('useCart must be used within a CartProvider');
   }
   return context;
