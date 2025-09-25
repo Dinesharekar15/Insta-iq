@@ -125,13 +125,11 @@ const getAllOrders = asyncHandler(async (req, res) => {
   ]);
 
   res.json({
+    success: true,
     orders,
-    pagination: {
-      page,
-      limit,
-      total: totalOrders,
-      pages: Math.ceil(totalOrders / limit)
-    },
+    total: totalOrders,
+    page,
+    totalPages: Math.ceil(totalOrders / limit),
     stats: stats[0] || {
       totalOrders: 0,
       totalRevenue: 0,
@@ -229,7 +227,7 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
     throw new Error('Status is required');
   }
 
-  const validStatuses = ['pending', 'processing', 'completed', 'cancelled'];
+  const validStatuses = ['pending', 'processing', 'delivered', 'cancelled'];
   if (!validStatuses.includes(status)) {
     res.status(400);
     throw new Error('Invalid status');
@@ -280,6 +278,12 @@ const deleteOrder = asyncHandler(async (req, res) => {
 // @route   GET /api/admin/orders/stats
 // @access  Private/Admin
 const getOrderStats = asyncHandler(async (req, res) => {
+  console.log('=== Getting Order Stats ===');
+  
+  // First, let's see what orders we have
+  const allOrders = await Order.find({}).select('orderStatus amount');
+  console.log('All orders:', allOrders);
+  
   const stats = await Order.aggregate([
     {
       $group: {
@@ -288,14 +292,14 @@ const getOrderStats = asyncHandler(async (req, res) => {
         totalRevenue: {
           $sum: {
             $cond: [
-              { $eq: ['$orderStatus', 'completed'] },
-              '$amount',
+              { $eq: ['$orderStatus', 'delivered'] },
+              { $toDouble: '$amount' },
               0
             ]
           }
         },
         averageOrderValue: {
-          $avg: '$amount'
+          $avg: { $toDouble: '$amount' }
         },
         pendingOrders: {
           $sum: {
@@ -307,9 +311,9 @@ const getOrderStats = asyncHandler(async (req, res) => {
             $cond: [{ $eq: ['$orderStatus', 'processing'] }, 1, 0]
           }
         },
-        completedOrders: {
+        deliveredOrders: {
           $sum: {
-            $cond: [{ $eq: ['$orderStatus', 'completed'] }, 1, 0]
+            $cond: [{ $eq: ['$orderStatus', 'delivered'] }, 1, 0]
           }
         },
         cancelledOrders: {
@@ -321,11 +325,14 @@ const getOrderStats = asyncHandler(async (req, res) => {
     }
   ]);
 
+  console.log('Aggregation result:', stats);
+  console.log('Stats data:', stats[0]);
+
   // Get monthly revenue data for charts
   const monthlyStats = await Order.aggregate([
     {
       $match: {
-        orderStatus: 'completed',
+        orderStatus: 'delivered',
         createdAt: {
           $gte: new Date(new Date().getFullYear(), 0, 1) // From start of current year
         }
@@ -337,7 +344,7 @@ const getOrderStats = asyncHandler(async (req, res) => {
           year: { $year: '$createdAt' },
           month: { $month: '$createdAt' }
         },
-        revenue: { $sum: '$amount' },
+        revenue: { $sum: { $toDouble: '$amount' } },
         orders: { $sum: 1 }
       }
     },
@@ -346,16 +353,32 @@ const getOrderStats = asyncHandler(async (req, res) => {
     }
   ]);
 
+  const statsData = stats[0] || {
+    totalOrders: 0,
+    totalRevenue: 0,
+    averageOrderValue: 0,
+    pendingOrders: 0,
+    processingOrders: 0,
+    deliveredOrders: 0,
+    cancelledOrders: 0
+  };
+
+  console.log('Final stats data being sent:', {
+    totalOrders: statsData.totalOrders,
+    totalRevenue: statsData.totalRevenue,
+    deliveredOrders: statsData.deliveredOrders,
+    pendingOrders: statsData.pendingOrders
+  });
+
   res.json({
-    overview: stats[0] || {
-      totalOrders: 0,
-      totalRevenue: 0,
-      averageOrderValue: 0,
-      pendingOrders: 0,
-      processingOrders: 0,
-      completedOrders: 0,
-      cancelledOrders: 0
-    },
+    success: true,
+    totalOrders: statsData.totalOrders,
+    totalRevenue: statsData.totalRevenue,
+    deliveredOrders: statsData.deliveredOrders,
+    pendingOrders: statsData.pendingOrders,
+    processingOrders: statsData.processingOrders,
+    cancelledOrders: statsData.cancelledOrders,
+    averageOrderValue: statsData.averageOrderValue,
     monthlyStats
   });
 });

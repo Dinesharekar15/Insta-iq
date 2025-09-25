@@ -41,7 +41,7 @@ function App() {
       <CartProvider>
         <Router>
           <ScrollToTop />
-          <Routes>
+        <Routes>
         {/* Admin Panel route without Layout wrapper */}
         <Route path="/admin/*" element={<AdminPanel />} />
         

@@ -381,7 +381,7 @@ const Login = () => {
                     {loading ? "Logging In..." : "Login"}
                   </button>
                 </div>
-                <div className="col-lg-12">
+                {/* <div className="col-lg-12">
                   <div style={{ marginTop: '15px', textAlign: 'center' }}>
                     <p style={{ fontSize: '14px', color: '#666', marginBottom: '10px' }}>Demo Role Logins:</p>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
@@ -439,7 +439,7 @@ const Login = () => {
                       </button>
                     </div>
                   </div>
-                </div>
+                </div> */}
               </div>
             </form>
             )}

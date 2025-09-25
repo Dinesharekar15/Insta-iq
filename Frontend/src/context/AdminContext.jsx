@@ -1,3 +1,37 @@
+/**
+ * AdminContext provides comprehensive admin functionality including:
+ * - Course management (courses, addCourse, updateCourse, deleteCourse)
+ * - Event management (events, addEvent, updateEvent, deleteEvent) 
+ * - Testimonial management (clientTestimonials, studentTestimonials, add/update/delete functions)
+ * - Order management (orders, orderStats, fetchOrdersData, fetchOrderStats, updateOrderStatus)
+ * - Admin profile management (getAdminProfile, updateAdminProfile)
+ * - Dashboard statistics (getStats)
+ * - Loading states and error handling
+ * 
+ * Usage example for orders:
+ * ```jsx
+ * import { useAdmin } from '../context/AdminContext';
+ * 
+ * function OrdersComponent() {
+ *   const { orders, orderStats, fetchOrdersData, updateOrderStatus, loading } = useAdmin();
+ *   
+ *   useEffect(() => {
+ *     fetchOrdersData(1, 10, '', 'all'); // page, limit, search, status
+ *   }, []);
+ *   
+ *   return (
+ *     <div>
+ *       <p>Total Orders: {orderStats.totalOrders}</p>
+ *       <p>Total Revenue: ${orderStats.totalRevenue}</p>
+ *       {orders.map(order => (
+ *         <div key={order._id}>{order.user?.name} - ${order.amount}</div>
+ *       ))}
+ *     </div>
+ *   );
+ * }
+ * ```
+ */
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 import AuthUtils from '../utils/auth.js';
@@ -350,30 +384,31 @@ export const AdminProvider = ({ children }) => {
   const [events, setEvents] = useState(initialEvents);
   const [clientTestimonials, setClientTestimonials] = useState(initialClientTestimonials);
   const [studentTestimonials, setStudentTestimonials] = useState(initialStudentTestimonials);
+  const [orders, setOrders] = useState([]);
+  const [orderStats, setOrderStats] = useState({
+    totalOrders: 0,
+    totalRevenue: 0,
+    deliveredOrders: 0,
+    pendingOrders: 0
+  });
+  const [users, setUsers] = useState([]);
+  const [userStats, setUserStats] = useState({
+    totalUsers: 0,
+    activeUsers: 0,
+    newUsers: 0
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Setup demo admin session if not logged in
-  const setupDemoAdmin = () => {
-    if (!AuthUtils.isAuthenticated()) {
-      const demoAdmin = {
-        _id: 'demo-admin-id',
-        name: 'Demo Admin',
-        email: 'admin@demo.com',
-        role: 'admin',
-        token: 'demo-token-admin'
-      };
-      localStorage.setItem('userInfo', JSON.stringify(demoAdmin));
-      console.log('Demo admin session created');
-    }
-  };
 
   // Fetch data from backend or use fallback
   useEffect(() => {
-    setupDemoAdmin();
     fetchCoursesData();
     fetchEventsData();
     fetchTestimonialsData();
+    // Fetch orders data - don't block if orders API is not available
+    fetchOrdersData({ page: 1, limit: 10, search: '', status: 'all' }).catch(console.warn);
+    fetchOrderStats().catch(console.warn);
   }, []);
 
   const fetchCoursesData = async () => {
@@ -589,6 +624,172 @@ export const AdminProvider = ({ children }) => {
     }
   };
 
+  // Orders management functions
+  const fetchOrdersData = async (params = {}) => {
+    try {
+      console.log('fetchOrdersData called with params:', params);
+      setLoading(true);
+      
+      const { page = 1, limit = 10, search = '', status = 'all' } = params;
+      
+      const queryParams = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+        ...(search && { search }),
+        ...(status !== 'all' && { status })
+      });
+
+      console.log('Making API call to:', `${API_BASE_URL}/orders/admin/all?${queryParams}`);
+      console.log('Auth headers:', getAuthHeaders());
+
+      const response = await axios.get(`${API_BASE_URL}/orders/admin/all?${queryParams}`, {
+        headers: getAuthHeaders()
+      });
+
+      console.log('API Response:', response.data);
+
+      if (response.data.success) {
+        // Map orderStatus to status for frontend compatibility
+        const ordersWithMappedFields = (response.data.orders || []).map(order => ({
+          ...order,
+          status: order.orderStatus || order.status
+        }));
+        
+        setOrders(ordersWithMappedFields);
+        return {
+          orders: ordersWithMappedFields,
+          totalOrders: response.data.total || 0,
+          currentPage: response.data.page || 1,
+          totalPages: response.data.totalPages || 1
+        };
+      }
+      return { orders: [], totalOrders: 0, currentPage: 1, totalPages: 1 };
+    } catch (error) {
+      console.error("Error fetching orders:", error);
+      console.error("Error response:", error.response?.data);
+      console.error("Error status:", error.response?.status);
+      setError(error.response?.data?.message || error.message);
+      return { orders: [], totalOrders: 0, currentPage: 1, totalPages: 1 };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchOrderStats = async () => {
+    try {
+      console.log('fetchOrderStats called');
+      console.log('Making API call to:', `${API_BASE_URL}/orders/admin/stats`);
+      
+      const response = await axios.get(`${API_BASE_URL}/orders/admin/stats`, {
+        headers: getAuthHeaders()
+      });
+
+      console.log('Stats API Response:', response.data);
+
+      if (response.data.success) {
+        const stats = {
+          totalOrders: response.data.totalOrders || 0,
+          totalRevenue: response.data.totalRevenue || 0,
+          deliveredOrders: response.data.deliveredOrders || 0,
+          pendingOrders: response.data.pendingOrders || 0
+        };
+        console.log('Setting order stats:', stats);
+        setOrderStats(stats);
+        return stats;
+      }
+      return orderStats;
+    } catch (error) {
+      console.error("Error fetching order stats:", error);
+      console.error("Stats error response:", error.response?.data);
+      setError(error.response?.data?.message || error.message);
+      return orderStats;
+    }
+  };
+
+  // Update order status
+  const updateOrderStatus = async (orderId, status) => {
+    try {
+      const response = await axios.put(`${API_BASE_URL}/orders/admin/${orderId}/status`, 
+        { status }, 
+        {
+          headers: getAuthHeaders()
+        }
+      );
+
+      if (response.data.success) {
+        // Update the local orders state
+        setOrders(prevOrders => 
+          prevOrders.map(order => 
+            order._id === orderId ? { ...order, status } : order
+          )
+        );
+        // Refresh stats after status update
+        await fetchOrderStats();
+        return { success: true, message: response.data.message };
+      }
+      return { success: false, message: response.data.message || 'Failed to update order status' };
+    } catch (error) {
+      console.error("Error updating order status:", error);
+      return { success: false, message: error.response?.data?.message || 'Failed to update order status' };
+    }
+  };
+
+  // Users management functions
+  const fetchUsersData = async (params = {}) => {
+    try {
+      console.log('fetchUsersData called with params:', params);
+      setLoading(true);
+      
+      const { page = 1, limit = 50, search = '', role = '', status = '' } = params;
+      
+      const queryParams = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+        ...(search && { search }),
+        ...(role && { role }),
+        ...(status && { status })
+      });
+
+      console.log('Making API call to:', `${API_BASE_URL}/admin/users?${queryParams}`);
+      console.log('Auth headers:', getAuthHeaders());
+
+      const response = await axios.get(`${API_BASE_URL}/admin/users?${queryParams}`, {
+        headers: getAuthHeaders()
+      });
+
+      console.log('Users API Response:', response.data);
+
+      if (response.data.success && response.data.data) {
+        const usersData = response.data.data.users || [];
+        setUsers(usersData);
+        
+        // Update user stats
+        const totalUsers = response.data.data.pagination?.total || usersData.length;
+        setUserStats({
+          totalUsers,
+          activeUsers: usersData.filter(user => user.status === 'active').length,
+          pendingUsers: usersData.filter(user => user.status === 'pending').length,
+          blockedUsers: usersData.filter(user => user.status === 'blocked').length
+        });
+        
+        return {
+          users: usersData,
+          totalUsers,
+          currentPage: response.data.data.pagination?.page || 1,
+          totalPages: response.data.data.pagination?.totalPages || 1
+        };
+      }
+      return { users: [], totalUsers: 0, currentPage: 1, totalPages: 1 };
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      console.error("Users error response:", error.response?.data);
+      setError(error.response?.data?.message || error.message);
+      return { users: [], totalUsers: 0, currentPage: 1, totalPages: 1 };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Testimonials management functions
   const addClientTestimonial = async (testimonialData) => {
     try {
@@ -790,6 +991,10 @@ export const AdminProvider = ({ children }) => {
     const paidCourses = courses.filter(course => course.price > 0);
     const activePaidUsers = paidCourses.reduce((sum, course) => sum + (course.enrollments || 0), 0);
     
+    // Use real order data when available, fallback to course-based calculations
+    const revenueFromOrders = orderStats.totalRevenue || 0;
+    const revenueFromCourses = courses.reduce((sum, course) => sum + (course.price * (course.enrollments || 0)), 0);
+    
     return {
       totalCourses: courses.length,
       activeCourses: courses.filter(c => c.status === 'active').length,
@@ -800,9 +1005,13 @@ export const AdminProvider = ({ children }) => {
       publishedClientTestimonials: clientTestimonials.filter(t => t.status === 'published').length,
       publishedStudentTestimonials: studentTestimonials.filter(t => t.status === 'published').length,
       totalEnrollments: courses.reduce((sum, course) => sum + (course.enrollments || 0), 0),
-      totalRevenue: courses.reduce((sum, course) => sum + (course.price * (course.enrollments || 0)), 0),
+      totalRevenue: revenueFromOrders || revenueFromCourses, // Prefer real order revenue
       averageRating: courses.reduce((sum, course) => sum + (course.rating || 0), 0) / courses.length || 0,
-      activePaidUsers: activePaidUsers
+      activePaidUsers: activePaidUsers,
+      // Include real order statistics
+      totalOrders: orderStats.totalOrders || 0,
+      deliveredOrders: orderStats.deliveredOrders || 0,
+      pendingOrders: orderStats.pendingOrders || 0
     };
   };
 
@@ -811,6 +1020,10 @@ export const AdminProvider = ({ children }) => {
     events,
     clientTestimonials,
     studentTestimonials,
+    orders,
+    orderStats,
+    users,
+    userStats,
     loading,
     error,
     addCourse,
@@ -825,11 +1038,17 @@ export const AdminProvider = ({ children }) => {
     addStudentTestimonial,
     updateStudentTestimonial,
     deleteStudentTestimonial,
+    fetchOrdersData,
+    fetchOrderStats,
+    fetchUsersData,
+    updateOrderStatus,
     getAdminProfile,
     updateAdminProfile,
     getStats,
     refreshCourses: fetchCoursesData,
-    refreshTestimonials: fetchTestimonialsData
+    refreshTestimonials: fetchTestimonialsData,
+    refreshOrders: fetchOrdersData,
+    refreshUsers: fetchUsersData
   };
 
   return (

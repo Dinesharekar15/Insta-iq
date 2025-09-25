@@ -3,9 +3,23 @@ import { useAdmin } from "../../context/AdminContext";
 import { Link } from "react-router-dom";
 
 const AdminDashboard = () => {
-  const { courses, events, loading, getStats } = useAdmin();
+  const { 
+    courses, 
+    events, 
+    loading, 
+    orderStats, 
+    getStats,
+    fetchOrderStats,
+    fetchOrdersData,
+    fetchUsersData,
+    orders,
+    users,
+    userStats,
+    clientTestimonials,
+    studentTestimonials 
+  } = useAdmin();
   const [stats, setStats] = useState({
-    totalUsers: 1250,
+    totalUsers: 0,
     recentOrders: [],
     recentUsers: []
   });
@@ -15,9 +29,17 @@ const AdminDashboard = () => {
     const realStats = getStats();
     setStats(prev => ({
       ...prev,
-      ...realStats
+      ...realStats,
+      totalUsers: userStats?.totalUsers || users?.length || realStats.totalUsers || 0
     }));
-  }, [courses, events, getStats]);
+  }, [courses, events, orderStats, userStats, users]);
+
+  // Fetch order stats and user data on component mount
+  useEffect(() => {
+    fetchOrderStats();
+    fetchOrdersData();
+    fetchUsersData();
+  }, []);
 
   const statCards = [
     {
@@ -25,67 +47,151 @@ const AdminDashboard = () => {
       value: stats.totalUsers,
       icon: "fa fa-users",
       color: "#007bff",
-      change: "+12%",
-      changeType: "positive"
+      changeType: "positive",
+      change: "+12%"
     },
     {
-      title: "Active Paid Users",
-      value: stats.activePaidUsers || 0,
-      icon: "fa fa-user-check",
-      color: "#20c997",
-      change: `${stats.totalEnrollments || 0} total enrollments`,
-      changeType: "positive"
+      title: "Total Orders",
+      value: orderStats?.totalOrders || 0,
+      icon: "fa fa-shopping-cart",
+      color: "#6f42c1",
+      changeType: "positive",
+      change: "+24%"
+    },
+    {
+      title: "Total Revenue",
+      value: `₹${orderStats?.totalRevenue || 0}`,
+      icon: "fa fa-rupee-sign",
+      color: "#dc3545",
+      changeType: "positive",
+      change: "+18%"
     },
     {
       title: "Total Courses",
       value: stats.totalCourses || 0,
       icon: "fa fa-book",
       color: "#28a745",
-      change: `${stats.activeCourses || 0} active`,
-      changeType: "positive"
+      changeType: "positive",
+      change: "+8%"
+    },
+    {
+      title: "Total Events",
+      value: events?.length || 0,
+      icon: "fa fa-calendar",
+      color: "#fd7e14",
+      changeType: "positive",
+      change: "+15%"
+    },
+    {
+      title: "Delivered Orders",
+      value: orderStats?.deliveredOrders || 0,
+      icon: "fa fa-check-circle",
+      color: "#20c997",
+      changeType: "positive",
+      change: "+22%"
+    },
+    {
+      title: "Pending Orders",
+      value: orderStats?.pendingOrders || 0,
+      icon: "fa fa-clock",
+      color: "#ffc107",
+      changeType: "neutral",
+      change: "±5%"
+    },
+    {
+      title: "Processing Orders",
+      value: orderStats?.processingOrders || 0,
+      icon: "fa fa-spinner",
+      color: "#17a2b8",
+      changeType: "neutral",
+      change: "+10%"
     },
     {
       title: "Client Testimonials",
-      value: stats.totalClientTestimonials || 0,
+      value: clientTestimonials?.length || 0,
       icon: "fa fa-comments",
-      color: "#17a2b8",
-      change: `${stats.publishedClientTestimonials || 0} published`,
-      changeType: "positive"
+      color: "#6610f2",
+      changeType: "positive",
+      change: "+6%"
     },
     {
       title: "Student Testimonials",
-      value: stats.totalStudentTestimonials || 0,
+      value: studentTestimonials?.length || 0,
       icon: "fa fa-graduation-cap",
-      color: "#6f42c1",
-      change: `${stats.publishedStudentTestimonials || 0} published`,
-      changeType: "positive"
+      color: "#e83e8c",
+      changeType: "positive",
+      change: "+14%"
     },
     {
-      title: "Total Revenue",
-      value: `₹${(stats.totalRevenue || 0).toLocaleString()}`,
-      icon: "fa fa-money",
-      color: "#dc3545",
-      change: `${stats.totalEnrollments || 0} enrollments`,
-      changeType: "positive"
+      title: "Cancelled Orders",
+      value: orderStats?.cancelledOrders || 0,
+      icon: "fa fa-times-circle",
+      color: "#6c757d",
+      changeType: "negative",
+      change: "-2%"
+    },
+    {
+      title: "Average Order Value",
+      value: `₹${orderStats?.averageOrderValue ? Math.round(orderStats.averageOrderValue) : 0}`,
+      icon: "fa fa-chart-line",
+      color: "#198754",
+      changeType: "positive",
+      change: "+11%"
     }
   ];
 
-  // Generate recent orders from course data
-  const recentOrders = courses.slice(0, 4).map((course, index) => ({
-    id: course._id,
-    user: ["John Doe", "Jane Smith", "Mike Johnson", "Sarah Wilson"][index],
-    course: course.title.substring(0, 20) + "...",
-    amount: course.price === 0 ? "Free" : `₹${course.price.toLocaleString()}`,
-    status: ["Completed", "Pending", "Completed", "Processing"][index],
-    date: course.createdAt
-  }));
+  // Get real recent orders from orders data (top 4)
+  const getRecentOrders = () => {
+    if (orders && orders.length > 0) {
+      return orders
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        .slice(0, 4)
+        .map(order => ({
+          id: order._id,
+          user: order.name || order.customerName || 'N/A',
+          course: order.course?.title || order.courseName || 'Course Order',
+          amount: order.amount ? `₹${parseInt(order.amount).toLocaleString()}` : 'N/A',
+          status: order.status || 'Pending',
+          date: order.createdAt ? new Date(order.createdAt).toLocaleDateString() : 'N/A'
+        }));
+    }
+    // Fallback to course-based mock data if no real orders
+    return courses.slice(0, 4).map((course, index) => ({
+      id: course._id,
+      user: ["John Doe", "Jane Smith", "Mike Johnson", "Sarah Wilson"][index],
+      course: course.title.substring(0, 20) + "...",
+      amount: course.price === 0 ? "Free" : `₹${course.price.toLocaleString()}`,
+      status: ["Completed", "Pending", "Completed", "Processing"][index],
+      date: course.createdAt
+    }));
+  };
 
-  const recentUsers = [
-    { id: 1, name: "Alice Brown", email: "alice@example.com", joinDate: "2024-01-15", status: "Active" },
-    { id: 2, name: "Bob Davis", email: "bob@example.com", joinDate: "2024-01-14", status: "Active" },
-    { id: 3, name: "Carol Evans", email: "carol@example.com", joinDate: "2024-01-13", status: "Pending" },
-    { id: 4, name: "David Frank", email: "david@example.com", joinDate: "2024-01-12", status: "Active" }
-  ];
+  const recentOrders = getRecentOrders();
+
+  // Get real recent users from users data (top 4)
+  const getRecentUsers = () => {
+    if (users && users.length > 0) {
+      return users
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        .slice(0, 4)
+        .map(user => ({
+          id: user._id,
+          name: user.name || 'N/A',
+          email: user.email || 'N/A',
+          joinDate: user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A',
+          status: user.status ? user.status.charAt(0).toUpperCase() + user.status.slice(1) : 'Active'
+        }));
+    }
+    // Fallback to mock data if no real users
+    return [
+      { id: 1, name: "Alice Brown", email: "alice@example.com", joinDate: "2024-01-15", status: "Active" },
+      { id: 2, name: "Bob Davis", email: "bob@example.com", joinDate: "2024-01-14", status: "Active" },
+      { id: 3, name: "Carol Evans", email: "carol@example.com", joinDate: "2024-01-13", status: "Pending" },
+      { id: 4, name: "David Frank", email: "david@example.com", joinDate: "2024-01-12", status: "Active" }
+    ];
+  };
+
+  const recentUsers = getRecentUsers();
 
   if (loading) {
     return (
@@ -142,7 +248,8 @@ const AdminDashboard = () => {
             </div>
             <div style={{ marginTop: '15px', display: 'flex', alignItems: 'center' }}>
               <span style={{ 
-                color: card.changeType === 'positive' ? '#28a745' : '#dc3545',
+                color: card.changeType === 'positive' ? '#28a745' : 
+                       card.changeType === 'negative' ? '#dc3545' : '#ffc107',
                 fontSize: '14px',
                 fontWeight: 'bold'
               }}>
@@ -173,6 +280,7 @@ const AdminDashboard = () => {
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <h3 style={{ margin: 0, color: '#333' }}>Recent Orders</h3>
+            <Link to= "/admin/orders">
             <button style={{
               background: '#007bff',
               color: 'white',
@@ -184,6 +292,7 @@ const AdminDashboard = () => {
             }}>
               View All
             </button>
+            </Link>
           </div>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -232,6 +341,7 @@ const AdminDashboard = () => {
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <h3 style={{ margin: 0, color: '#333' }}>Recent Users</h3>
+          <Link to="/admin/users">
             <button style={{
               background: '#007bff',
               color: 'white',
@@ -243,6 +353,7 @@ const AdminDashboard = () => {
             }}>
               View All
             </button>
+          </Link>
           </div>
           <div>
             {recentUsers.map((user) => (

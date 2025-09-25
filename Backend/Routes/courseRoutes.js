@@ -11,6 +11,6 @@ router.get('/:id', getCourseById); // NEW: Route for single course details
 
 
 // Protected route for purchasing a course
-router.post('/:id/purchase', protect, authorizeRoles('user'), purchaseCourse);
+router.post('/:id/purchase', protect, authorizeRoles('student'), purchaseCourse);
 
 export default router;
