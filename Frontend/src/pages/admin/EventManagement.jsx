@@ -281,7 +281,7 @@ const EventManagement = () => {
               <option value="all">All Events</option>
               <option value="upcoming">Upcoming</option>
               <option value="ongoing">Ongoing</option>
-              <option value="complete">Complete</option>
+              <option value="complete">Completed</option>
               <option value="cancelled">Cancelled</option>
             </select>
           </div>

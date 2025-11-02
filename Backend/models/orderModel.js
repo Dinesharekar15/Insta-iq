@@ -58,7 +58,7 @@ const orderSchema = mongoose.Schema(
 );
 
 // Index for better query performance
-orderSchema.index({ orderId: 1 });
+// Note: orderId already has unique: true, so no separate index needed
 orderSchema.index({ orderStatus: 1 });
 orderSchema.index({ 'user.email': 1 });
 
