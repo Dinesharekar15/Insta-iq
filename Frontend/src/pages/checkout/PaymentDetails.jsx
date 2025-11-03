@@ -1,6 +1,10 @@
 import React, { useState } from "react";
 import { useCart } from "../../context/CartContext";
 
+// Define your backend base URL from environment variables
+const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000/api";
+console.log("Backend URL (Payment Details):", import.meta.env.VITE_BACKEND_URL);
+
 const PaymentDetails = () => {
   const { selectedCourse, billingDetails, paymentDetails, updatePaymentDetails, goToStep, clearCart, resetCheckout, addPurchasedCourse, loadPurchasedCourses } = useCart();
   const [processing, setProcessing] = useState(false);
@@ -41,7 +45,7 @@ const PaymentDetails = () => {
 
       console.log('Creating order with data:', orderData);
 
-      const response = await fetch('http://localhost:5000/api/orders', {
+      const response = await fetch(`${API_BASE_URL}/orders`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -72,7 +76,7 @@ const PaymentDetails = () => {
       const token = userInfo.token;
       if (!token) return false;
 
-      const response = await fetch(`http://localhost:5000/api/orders/complete-payment/${orderId}`, {
+      const response = await fetch(`${API_BASE_URL}/orders/complete-payment/${orderId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
